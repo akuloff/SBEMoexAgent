@@ -67,7 +67,7 @@ public class ConsoleLauncher {
                 bufferOffset += MESSAGE_HEADER_ENCODER.encodedLength();
                 encodingLength += MESSAGE_HEADER_ENCODER.encodedLength();
 
-                establishEncoder.wrap(directBuffer, bufferOffset).credentials("twFZct_FZ00F36").keepaliveInterval(5000).timestamp(System.currentTimeMillis());
+                establishEncoder.wrap(directBuffer, bufferOffset).credentials("11").keepaliveInterval(5000).timestamp(System.currentTimeMillis());
                 encodingLength += establishEncoder.encodedLength();
 
                 System.out.println("encodingLength: " + encodingLength);
