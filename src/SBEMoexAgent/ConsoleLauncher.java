@@ -32,7 +32,7 @@ public class ConsoleLauncher {
         SimpleClient simpleClient;
         ReadSocketProcess readSocketProcess;
         WritableByteChannel outChannel;
-        long intervalMsec = 5000;
+        long intervalMsec = 10000L;
         TwimeDecoder twimeDecoder = new TwimeDecoder();
 
         simpleClient = new SimpleClient("91.208.232.244", 9000);
@@ -91,7 +91,7 @@ public class ConsoleLauncher {
                 outChannel.write(byteBuffer);
 
                 try {
-                    Thread.sleep(30000);
+                    Thread.sleep(60000);
                     System.out.println("end sleep ...");
                     if (twimeDecoder.getHeartBeatProcess() != null) {
                         twimeDecoder.getHeartBeatProcess().setStopped(true);

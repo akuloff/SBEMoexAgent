@@ -17,12 +17,10 @@ public class TwimeHeartBeatProcess implements Runnable{
     private long sequenceNum = 0;
     private WritableByteChannel channel = null;
     private long intervalMsec = 0;
+    private byte[] bArray = new byte[4096];
 
     MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     SequenceEncoder sequenceEncoder = new SequenceEncoder();
-    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
-    UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
-
 
     public TwimeHeartBeatProcess(long sequenceNum, WritableByteChannel channel, long intervalMsec) {
         this.sequenceNum = sequenceNum;
@@ -43,6 +41,9 @@ public class TwimeHeartBeatProcess implements Runnable{
         int bufferOffset = 0;
         int encodingLength = 0;
 
+        ByteBuffer byteBuffer = ByteBuffer.wrap(bArray);
+        UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
+
         messageHeaderEncoder.wrap(directBuffer, bufferOffset)
                 .blockLength(sequenceEncoder.sbeBlockLength())
                 .templateId(sequenceEncoder.sbeTemplateId())
@@ -52,7 +53,9 @@ public class TwimeHeartBeatProcess implements Runnable{
         bufferOffset += messageHeaderEncoder.encodedLength();
         encodingLength += messageHeaderEncoder.encodedLength();
 
-        sequenceEncoder.wrap(directBuffer, bufferOffset).nextSeqNo(seqNum);
+        sequenceEncoder.wrap(directBuffer, bufferOffset);
+        sequenceEncoder.nextSeqNo(SequenceEncoder.nextSeqNoNullValue());
+        //sequenceEncoder.wrap(directBuffer, bufferOffset).nextSeqNo(seqNum);
         encodingLength += sequenceEncoder.encodedLength();
 
         byteBuffer.limit(encodingLength);
@@ -70,8 +73,10 @@ public class TwimeHeartBeatProcess implements Runnable{
         while(!isStopped){
             try {
                 Thread.sleep(intervalMsec);
-                sendSequence(sequenceNum);
-                sequenceNum ++;
+                if(!isStopped) {
+                    sendSequence(sequenceNum);
+                    //sequenceNum ++;
+                }
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 isStopped = true;
