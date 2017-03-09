@@ -2,6 +2,7 @@ package SBEMoexAgent;
 
 import SimpleIOSocket.ReadSocketProcess;
 import SimpleIOSocket.SimpleClient;
+import SimpleIOSocket.TwimeDecoder;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.EstablishEncoder;
 import sbe.MessageHeaderEncoder;
@@ -31,6 +32,8 @@ public class ConsoleLauncher {
         SimpleClient simpleClient;
         ReadSocketProcess readSocketProcess;
 
+        TwimeDecoder twimeDecoder = new TwimeDecoder();
+
         simpleClient = new SimpleClient("91.208.232.244", 9000);
         simpleClient.doConnect();
 
@@ -39,6 +42,7 @@ public class ConsoleLauncher {
             protected void processMessage(int actualReaded) {
                 super.processMessage(actualReaded);
                 System.out.println("byte array, size: " + actualReaded + "\n" + byteArrayToHex(dataBuffer, actualReaded));
+                twimeDecoder.decodeMessage(unsafeBuffer);
             }
         };
 
@@ -67,7 +71,7 @@ public class ConsoleLauncher {
                 bufferOffset += MESSAGE_HEADER_ENCODER.encodedLength();
                 encodingLength += MESSAGE_HEADER_ENCODER.encodedLength();
 
-                establishEncoder.wrap(directBuffer, bufferOffset).credentials("11").keepaliveInterval(5000).timestamp(System.currentTimeMillis());
+                establishEncoder.wrap(directBuffer, bufferOffset).credentials("twFZct_FZ00F36").keepaliveInterval(5000).timestamp(System.currentTimeMillis());
                 encodingLength += establishEncoder.encodedLength();
 
                 System.out.println("encodingLength: " + encodingLength);

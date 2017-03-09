@@ -1,5 +1,7 @@
 package SimpleIOSocket;
 
+import org.agrona.concurrent.UnsafeBuffer;
+
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -13,6 +15,7 @@ public class ReadSocketProcess implements Runnable {
     private InputStream inputStream = null;
     protected final byte[] dataBuffer = new byte[4096];
     private boolean isStopped = false;
+    protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(dataBuffer);
 
     public ReadSocketProcess(Socket socket) {
         this.socket = socket;
