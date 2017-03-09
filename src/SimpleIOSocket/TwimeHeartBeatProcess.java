@@ -5,6 +5,7 @@ import sbe.EstablishEncoder;
 import sbe.MessageHeaderEncoder;
 import sbe.SequenceEncoder;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
@@ -54,7 +55,13 @@ public class TwimeHeartBeatProcess implements Runnable{
         sequenceEncoder.wrap(directBuffer, bufferOffset).nextSeqNo(seqNum);
         encodingLength += sequenceEncoder.encodedLength();
 
-
+        byteBuffer.limit(encodingLength);
+        try {
+            channel.write(byteBuffer);
+        } catch (IOException e) {
+            e.printStackTrace();
+            this.setStopped(true);
+        }
     }
 
     @Override
@@ -62,6 +69,8 @@ public class TwimeHeartBeatProcess implements Runnable{
         while(!isStopped){
             try {
                 Thread.sleep(intervalMsec);
+                sendSequence(sequenceNum);
+                sequenceNum ++;
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 isStopped = true;

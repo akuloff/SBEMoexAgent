@@ -7,6 +7,8 @@ import sbe.MessageHeaderDecoder;
 import sbe.SequenceDecoder;
 import sbe.TerminateDecoder;
 
+import java.nio.channels.WritableByteChannel;
+
 /**
  * Created by mpoke_000 on 08.03.2017.
  */
@@ -14,9 +16,29 @@ public class TwimeDecoder {
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private long sequenceNum = 0;
     private TwimeHeartBeatProcess heartBeatProcess = null;
+    private long intervalMsec = 0;
+    private WritableByteChannel outputChannel;
 
     public TwimeHeartBeatProcess getHeartBeatProcess() {
         return heartBeatProcess;
+    }
+
+    public long getIntervalMsec() {
+        return intervalMsec;
+    }
+
+    public TwimeDecoder setIntervalMsec(long intervalMsec) {
+        this.intervalMsec = intervalMsec;
+        return this;
+    }
+
+    public WritableByteChannel getOutputChannel() {
+        return outputChannel;
+    }
+
+    public TwimeDecoder setOutputChannel(WritableByteChannel outputChannel) {
+        this.outputChannel = outputChannel;
+        return this;
     }
 
     public void decodeMessage(UnsafeBuffer unsafeBuffer){
@@ -37,9 +59,8 @@ public class TwimeDecoder {
                     EstablishmentAckDecoder establishmentAckDecoder = new EstablishmentAckDecoder();
                     establishmentAckDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     sequenceNum = establishmentAckDecoder.nextSeqNo();
-
                     if (heartBeatProcess == null) {
-                        heartBeatProcess = new TwimeHeartBeatProcess(sequenceNum);
+                        heartBeatProcess = new TwimeHeartBeatProcess(sequenceNum, outputChannel, intervalMsec);
                     }
 
                     break;
