@@ -57,6 +57,7 @@ public class TwimeHeartBeatProcess implements Runnable{
 
         byteBuffer.limit(encodingLength);
         try {
+            System.out.println(" >> TwimeHeartBeatProcess send sequence, seqNum: " + seqNum  + " |encodingLength: " + encodingLength + " .....");
             channel.write(byteBuffer);
         } catch (IOException e) {
             e.printStackTrace();

@@ -35,15 +35,17 @@ public class ReadSocketProcess implements Runnable {
                 try {
                     actualReaded = inputStream.read(dataBuffer);
                     if (actualReaded >= 0) {
-                        System.out.println("actualReaded = " + actualReaded);
+                        //System.out.println("actualReaded = " + actualReaded);
                         processMessage(actualReaded);
                     } else {
                         System.out.println("actualReaded below zero: " + actualReaded + " do stop, time: " + new java.util.Date(System.currentTimeMillis()));
                         isStopped = true;
+                        onStop();
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                     isStopped = true;
+                    onStop();
                     System.out.println("error read stream, do stop, time: " + new java.util.Date(System.currentTimeMillis()));
                 }
             }
@@ -52,6 +54,10 @@ public class ReadSocketProcess implements Runnable {
 
 
     protected void processMessage(int actualReaded){
+
+    }
+
+    protected void onStop(){
 
     }
 

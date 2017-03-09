@@ -62,7 +62,7 @@ public class TwimeDecoder {
                     if (heartBeatProcess == null) {
                         heartBeatProcess = new TwimeHeartBeatProcess(sequenceNum, outputChannel, intervalMsec);
                     }
-
+                    new Thread(heartBeatProcess).start();
                     break;
                 case 5006://heartbeat (sequence)
                     SequenceDecoder sequenceDecoder = new SequenceDecoder();

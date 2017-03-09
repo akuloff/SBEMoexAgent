@@ -42,14 +42,22 @@ public class ConsoleLauncher {
                 OutputStream outputStream = simpleClient.getSocket().getOutputStream();
                 outChannel = Channels.newChannel(outputStream);
 
-                twimeDecoder.setIntervalMsec(intervalMsec).setOutputChannel(outChannel);
+                twimeDecoder.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
 
                 readSocketProcess = new ReadSocketProcess(simpleClient.getSocket()){
                     @Override
                     protected void processMessage(int actualReaded) {
                         super.processMessage(actualReaded);
-                        System.out.println("byte array, size: " + actualReaded + "\n" + byteArrayToHex(dataBuffer, actualReaded));
+                        //System.out.println("byte array, size: " + actualReaded + "\n" + byteArrayToHex(dataBuffer, actualReaded));
                         twimeDecoder.decodeMessage(unsafeBuffer);
+                    }
+
+                    @Override
+                    protected void onStop() {
+                        super.onStop();
+                        if(twimeDecoder != null && twimeDecoder.getHeartBeatProcess() != null){
+                            twimeDecoder.getHeartBeatProcess().setStopped(true);
+                        }
                     }
                 };
 
@@ -83,6 +91,11 @@ public class ConsoleLauncher {
                 outChannel.write(byteBuffer);
 
                 try {
+                    Thread.sleep(30000);
+                    System.out.println("end sleep ...");
+                    if (twimeDecoder.getHeartBeatProcess() != null) {
+                        twimeDecoder.getHeartBeatProcess().setStopped(true);
+                    }
                     t.join();
                 } catch (InterruptedException e) {
                     e.printStackTrace();
