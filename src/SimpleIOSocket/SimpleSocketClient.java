@@ -6,12 +6,12 @@ import java.net.Socket;
 /**
  * Created by mpoke_000 on 07.03.2017.
  */
-public class SimpleClient {
+public class SimpleSocketClient {
     private String serverAddr = null;
     private int serverPort = 0;
     private Socket socket;
 
-    public SimpleClient(String serverAddr, int serverPort) {
+    public SimpleSocketClient(String serverAddr, int serverPort) {
         this.serverAddr = serverAddr;
         this.serverPort = serverPort;
     }

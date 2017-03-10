@@ -1,7 +1,7 @@
 package SBEMoexAgent;
 
 import SimpleIOSocket.ReadSocketProcess;
-import SimpleIOSocket.SimpleClient;
+import SimpleIOSocket.SimpleSocketClient;
 import SimpleIOSocket.TwimeClient;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.EstablishEncoder;
@@ -28,22 +28,22 @@ public class ConsoleLauncher {
     }
 
     public static void main(String[] args){
-        SimpleClient simpleClient;
+        SimpleSocketClient simpleSocketClient;
         ReadSocketProcess readSocketProcess;
         WritableByteChannel outChannel;
         long intervalMsec = 10000L;
         TwimeClient twimeClient = new TwimeClient();
 
-        simpleClient = new SimpleClient("91.208.232.244", 9000);
-        simpleClient.doConnect();
-        if (simpleClient.isConnected()){
+        simpleSocketClient = new SimpleSocketClient("91.208.232.244", 9000);
+        simpleSocketClient.doConnect();
+        if (simpleSocketClient.isConnected()){
             try {
-                OutputStream outputStream = simpleClient.getSocket().getOutputStream();
+                OutputStream outputStream = simpleSocketClient.getSocket().getOutputStream();
                 outChannel = Channels.newChannel(outputStream);
 
                 twimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
 
-                readSocketProcess = new ReadSocketProcess(simpleClient.getSocket()){
+                readSocketProcess = new ReadSocketProcess(simpleSocketClient.getSocket()){
                     @Override
                     protected void processMessage(int actualReaded) {
                         super.processMessage(actualReaded);
@@ -102,7 +102,7 @@ public class ConsoleLauncher {
                     e.printStackTrace();
                 }
 
-                simpleClient.doDisconnect();
+                simpleSocketClient.doDisconnect();
 
             } catch (IOException e) {
                 e.printStackTrace();
