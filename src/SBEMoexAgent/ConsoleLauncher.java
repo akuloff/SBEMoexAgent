@@ -41,8 +41,6 @@ public class ConsoleLauncher {
                 OutputStream outputStream = simpleSocketClient.getSocket().getOutputStream();
                 outChannel = Channels.newChannel(outputStream);
 
-                twimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
-
                 readSocketProcess = new ReadSocketProcess(simpleSocketClient.getSocket()){
                     @Override
                     protected void processMessage(int actualReaded) {
@@ -63,33 +61,11 @@ public class ConsoleLauncher {
                 Thread t = new Thread(readSocketProcess);
                 t.start();
 
-
-                ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
-                UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
-                MessageHeaderEncoder MESSAGE_HEADER_ENCODER = new MessageHeaderEncoder();
-                EstablishEncoder establishEncoder = new EstablishEncoder();
-                int bufferOffset = 0;
-                int encodingLength = 0;
-
-                MESSAGE_HEADER_ENCODER
-                        .wrap(directBuffer, bufferOffset)
-                        .blockLength(establishEncoder.sbeBlockLength())
-                        .templateId(establishEncoder.sbeTemplateId())
-                        .schemaId(establishEncoder.sbeSchemaId())
-                        .version(establishEncoder.sbeSchemaVersion());
-
-                bufferOffset += MESSAGE_HEADER_ENCODER.encodedLength();
-                encodingLength += MESSAGE_HEADER_ENCODER.encodedLength();
-
                 String userName = System.getProperty("twimeUser");
                 System.out.println("userName: " + userName);
-                establishEncoder.wrap(directBuffer, bufferOffset).credentials(userName).keepaliveInterval(intervalMsec).timestamp(System.currentTimeMillis());
-                encodingLength += establishEncoder.encodedLength();
 
-                System.out.println("encodingLength: " + encodingLength);
-
-                byteBuffer.limit(encodingLength);
-                outChannel.write(byteBuffer);
+                twimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
+                twimeClient.sendEstablish(userName);
 
                 try {
                     Thread.sleep(60000);
