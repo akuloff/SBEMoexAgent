@@ -6,6 +6,8 @@ import SimpleIOSocket.TwimeClient;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.EstablishEncoder;
 import sbe.MessageHeaderEncoder;
+import sbe.SecurityTypeEnum;
+import sbe.SideEnum;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -62,13 +64,23 @@ public class ConsoleLauncher {
                 t.start();
 
                 String userName = System.getProperty("twimeUser");
-                System.out.println("userName: " + userName);
+                String userAccount = System.getProperty("userAccount");
+                System.out.println("userName: " + userName + " |userAccount: " + userAccount);
 
                 twimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
+                twimeClient.setUserAccount(userAccount);
                 twimeClient.sendEstablish(userName);
 
                 try {
-                    Thread.sleep(60000);
+                    //период работы
+
+                    Thread.sleep(20000);
+
+                    System.out.println("send mass cancel ...");
+                    twimeClient.sendOrderMassCancelRequest(0, 0, 1, SecurityTypeEnum.Future, SideEnum.AllOrders, "");
+
+                    Thread.sleep(5000);
+
                     System.out.println("end sleep ...");
                     if (twimeClient.getHeartBeatProcess() != null) {
                         twimeClient.getHeartBeatProcess().setStopped(true);

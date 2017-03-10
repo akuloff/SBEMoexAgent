@@ -16,19 +16,45 @@ public class TwimeClient {
     private TwimeHeartBeatProcess heartBeatProcess = null;
     private long intervalMsec = 0;
     private WritableByteChannel outputChannel = null;
+    private String userAccount = null;
 
-    ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
-    UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
-    MessageHeaderEncoder MESSAGE_HEADER_ENCODER = new MessageHeaderEncoder();
+    private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
+    private UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
+    private MessageHeaderEncoder MESSAGE_HEADER_ENCODER = new MessageHeaderEncoder();
 
+    private int bufferOffset = 0;
+    private int encodingLength = 0;
+
+    private EstablishmentAckDecoder establishmentAckDecoder = new EstablishmentAckDecoder();
+    private SequenceDecoder sequenceDecoder = new SequenceDecoder();
+    private TerminateDecoder terminateDecoder = new TerminateDecoder();
+    private OrderMassCancelResponseDecoder orderMassCancelResponseDecoder = new OrderMassCancelResponseDecoder();
+
+    private EstablishEncoder establishEncoder = new EstablishEncoder();
+    private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
+
+    public void sendOrderMassCancelRequest(long clOrdId, int clOrdLinkID, int securityId, SecurityTypeEnum securityTypeEnum, SideEnum sideEnum, String securityGroup) throws IOException {
+        bufferOffset = encodingLength = 0;
+        byteBuffer.clear();
+
+        MESSAGE_HEADER_ENCODER
+                .wrap(directBuffer, bufferOffset)
+                .blockLength(orderMassCancelRequestEncoder.sbeBlockLength())
+                .templateId(orderMassCancelRequestEncoder.sbeTemplateId())
+                .schemaId(orderMassCancelRequestEncoder.sbeSchemaId())
+                .version(orderMassCancelRequestEncoder.sbeSchemaVersion());
+        bufferOffset += MESSAGE_HEADER_ENCODER.encodedLength();
+        encodingLength += MESSAGE_HEADER_ENCODER.encodedLength();
+        orderMassCancelRequestEncoder.wrap(directBuffer, bufferOffset);
+        orderMassCancelRequestEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkID).securityID(securityId).securityType(securityTypeEnum).side(sideEnum).securityGroup(securityGroup);
+        encodingLength += orderMassCancelRequestEncoder.encodedLength();
+        sendBuffer(encodingLength);
+    }
 
     public void sendEstablish(String clientId) throws IOException {
-        EstablishEncoder establishEncoder = new EstablishEncoder();
-        int bufferOffset = 0;
-        int encodingLength = 0;
-
+        bufferOffset = encodingLength = 0;
         if (outputChannel != null) {
-            byteBuffer.reset();
+            byteBuffer.clear();
             MESSAGE_HEADER_ENCODER
                     .wrap(directBuffer, bufferOffset)
                     .blockLength(establishEncoder.sbeBlockLength())
@@ -38,14 +64,16 @@ public class TwimeClient {
 
             bufferOffset += MESSAGE_HEADER_ENCODER.encodedLength();
             encodingLength += MESSAGE_HEADER_ENCODER.encodedLength();
-
             establishEncoder.wrap(directBuffer, bufferOffset).credentials(clientId).keepaliveInterval(intervalMsec).timestamp(System.currentTimeMillis());
             encodingLength += establishEncoder.encodedLength();
-            byteBuffer.limit(encodingLength);
-            outputChannel.write(byteBuffer);
+            sendBuffer(encodingLength);
         }
     }
 
+    private void sendBuffer(int length) throws IOException {
+        byteBuffer.limit(length);
+        outputChannel.write(byteBuffer);
+    }
 
     public void decodeMessage(UnsafeBuffer unsafeBuffer){
         int bytesOffset = 0;
@@ -56,13 +84,12 @@ public class TwimeClient {
         int version = messageHeaderDecoder.version();
         int blockLength = messageHeaderDecoder.blockLength();
 
-        System.out.println("TwimeClient, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
+        System.out.println("  <<<< TwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
 
         bytesOffset += messageHeaderDecoder.encodedLength();
         if (templateId > 0 && version > 0) {
             switch (templateId) {
-                case 5001: //establishmentAsk (начало сессии)
-                    EstablishmentAckDecoder establishmentAckDecoder = new EstablishmentAckDecoder();
+                case EstablishmentAckDecoder.TEMPLATE_ID: //establishmentAsk (начало сессии)
                     establishmentAckDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     sequenceNum = establishmentAckDecoder.nextSeqNo();
                     if (heartBeatProcess == null) {
@@ -70,15 +97,18 @@ public class TwimeClient {
                     }
                     new Thread(heartBeatProcess).start();
                     break;
-                case 5006://heartbeat (sequence)
-                    SequenceDecoder sequenceDecoder = new SequenceDecoder();
+                case SequenceDecoder.TEMPLATE_ID://heartbeat (sequence)
                     sequenceDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     System.out.println("sequence nextSeqNo: " + sequenceDecoder.nextSeqNo());
                     break;
-                case 5003: //terminate
-                    TerminateDecoder terminateDecoder = new TerminateDecoder();
+                case TerminateDecoder.TEMPLATE_ID: //terminate
                     terminateDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     System.out.println("terminate, reason: " + terminateDecoder.terminationCode().toString());
+                    break;
+                case OrderMassCancelResponseDecoder.TEMPLATE_ID:
+                    orderMassCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    System.out.println("OrderMassCancelResponse, totalaffected: " + orderMassCancelResponseDecoder.totalAffectedOrders() + " |reject reason: " + orderMassCancelResponseDecoder.ordRejReason());
+                    break;
             }
         }
     }
@@ -105,5 +135,12 @@ public class TwimeClient {
         return this;
     }
 
+    public String getUserAccount() {
+        return userAccount;
+    }
 
+    public TwimeClient setUserAccount(String userAccount) {
+        this.userAccount = userAccount;
+        return this;
+    }
 }
