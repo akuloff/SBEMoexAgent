@@ -82,7 +82,9 @@ public class ConsoleLauncher {
                 bufferOffset += MESSAGE_HEADER_ENCODER.encodedLength();
                 encodingLength += MESSAGE_HEADER_ENCODER.encodedLength();
 
-                establishEncoder.wrap(directBuffer, bufferOffset).credentials("twFZct_FZ00F36").keepaliveInterval(intervalMsec).timestamp(System.currentTimeMillis());
+                String userName = System.getProperty("twimeUser");
+                System.out.println("userName: " + userName);
+                establishEncoder.wrap(directBuffer, bufferOffset).credentials(userName).keepaliveInterval(intervalMsec).timestamp(System.currentTimeMillis());
                 encodingLength += establishEncoder.encodedLength();
 
                 System.out.println("encodingLength: " + encodingLength);
