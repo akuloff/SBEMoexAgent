@@ -1,6 +1,5 @@
 package SimpleIOSocket;
 
-import org.agrona.DirectBuffer;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.EstablishmentAckDecoder;
 import sbe.MessageHeaderDecoder;
@@ -12,7 +11,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Created by mpoke_000 on 08.03.2017.
  */
-public class TwimeDecoder {
+public class TwimeClient {
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private long sequenceNum = 0;
     private TwimeHeartBeatProcess heartBeatProcess = null;
@@ -27,7 +26,7 @@ public class TwimeDecoder {
         return intervalMsec;
     }
 
-    public TwimeDecoder setIntervalMsec(long intervalMsec) {
+    public TwimeClient setIntervalMsec(long intervalMsec) {
         this.intervalMsec = intervalMsec;
         return this;
     }
@@ -36,7 +35,7 @@ public class TwimeDecoder {
         return outputChannel;
     }
 
-    public TwimeDecoder setOutputChannel(WritableByteChannel outputChannel) {
+    public TwimeClient setOutputChannel(WritableByteChannel outputChannel) {
         this.outputChannel = outputChannel;
         return this;
     }
@@ -50,7 +49,7 @@ public class TwimeDecoder {
         int version = messageHeaderDecoder.version();
         int blockLength = messageHeaderDecoder.blockLength();
 
-        System.out.println("TwimeDecoder, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
+        System.out.println("TwimeClient, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
 
         bytesOffset += messageHeaderDecoder.encodedLength();
         if (templateId > 0 && version > 0) {

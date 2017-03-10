@@ -2,7 +2,7 @@ package SBEMoexAgent;
 
 import SimpleIOSocket.ReadSocketProcess;
 import SimpleIOSocket.SimpleClient;
-import SimpleIOSocket.TwimeDecoder;
+import SimpleIOSocket.TwimeClient;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.EstablishEncoder;
 import sbe.MessageHeaderEncoder;
@@ -10,7 +10,6 @@ import sbe.MessageHeaderEncoder;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channel;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
@@ -33,7 +32,7 @@ public class ConsoleLauncher {
         ReadSocketProcess readSocketProcess;
         WritableByteChannel outChannel;
         long intervalMsec = 10000L;
-        TwimeDecoder twimeDecoder = new TwimeDecoder();
+        TwimeClient twimeClient = new TwimeClient();
 
         simpleClient = new SimpleClient("91.208.232.244", 9000);
         simpleClient.doConnect();
@@ -42,21 +41,21 @@ public class ConsoleLauncher {
                 OutputStream outputStream = simpleClient.getSocket().getOutputStream();
                 outChannel = Channels.newChannel(outputStream);
 
-                twimeDecoder.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
+                twimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
 
                 readSocketProcess = new ReadSocketProcess(simpleClient.getSocket()){
                     @Override
                     protected void processMessage(int actualReaded) {
                         super.processMessage(actualReaded);
                         //System.out.println("byte array, size: " + actualReaded + "\n" + byteArrayToHex(dataBuffer, actualReaded));
-                        twimeDecoder.decodeMessage(unsafeBuffer);
+                        twimeClient.decodeMessage(unsafeBuffer);
                     }
 
                     @Override
                     protected void onStop() {
                         super.onStop();
-                        if(twimeDecoder != null && twimeDecoder.getHeartBeatProcess() != null){
-                            twimeDecoder.getHeartBeatProcess().setStopped(true);
+                        if(twimeClient != null && twimeClient.getHeartBeatProcess() != null){
+                            twimeClient.getHeartBeatProcess().setStopped(true);
                         }
                     }
                 };
@@ -95,8 +94,8 @@ public class ConsoleLauncher {
                 try {
                     Thread.sleep(60000);
                     System.out.println("end sleep ...");
-                    if (twimeDecoder.getHeartBeatProcess() != null) {
-                        twimeDecoder.getHeartBeatProcess().setStopped(true);
+                    if (twimeClient.getHeartBeatProcess() != null) {
+                        twimeClient.getHeartBeatProcess().setStopped(true);
                     }
                     t.join();
                 } catch (InterruptedException e) {
