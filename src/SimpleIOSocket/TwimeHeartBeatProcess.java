@@ -14,10 +14,14 @@ import java.nio.channels.WritableByteChannel;
  */
 public class TwimeHeartBeatProcess implements Runnable{
     private boolean isStopped = false;
-    private long sequenceNum = 0;
+    private long sequenceNum = 0; //в MOEX TWIME не используется для heartbeat
     private WritableByteChannel channel = null;
     private long intervalMsec = 0;
     private byte[] bArray = new byte[4096];
+    ByteBuffer byteBuffer = ByteBuffer.wrap(bArray);
+    UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
+    private boolean isGenerated = false;
+    private int encodingLength = 0;
 
     MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     SequenceEncoder sequenceEncoder = new SequenceEncoder();
@@ -38,29 +42,29 @@ public class TwimeHeartBeatProcess implements Runnable{
     }
 
     private void sendSequence(long seqNum){
-        int bufferOffset = 0;
-        int encodingLength = 0;
+        byteBuffer.clear();
 
-        ByteBuffer byteBuffer = ByteBuffer.wrap(bArray);
-        UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
+        if ( !isGenerated ) {
+            int bufferOffset = 0;
+            encodingLength = 0;
+            messageHeaderEncoder.wrap(directBuffer, bufferOffset)
+                    .blockLength(sequenceEncoder.sbeBlockLength())
+                    .templateId(sequenceEncoder.sbeTemplateId())
+                    .schemaId(sequenceEncoder.sbeSchemaId())
+                    .version(sequenceEncoder.sbeSchemaVersion());
 
-        messageHeaderEncoder.wrap(directBuffer, bufferOffset)
-                .blockLength(sequenceEncoder.sbeBlockLength())
-                .templateId(sequenceEncoder.sbeTemplateId())
-                .schemaId(sequenceEncoder.sbeSchemaId())
-                .version(sequenceEncoder.sbeSchemaVersion());
+            bufferOffset += messageHeaderEncoder.encodedLength();
+            encodingLength += messageHeaderEncoder.encodedLength();
 
-        bufferOffset += messageHeaderEncoder.encodedLength();
-        encodingLength += messageHeaderEncoder.encodedLength();
-
-        sequenceEncoder.wrap(directBuffer, bufferOffset);
-        sequenceEncoder.nextSeqNo(SequenceEncoder.nextSeqNoNullValue());
-        //sequenceEncoder.wrap(directBuffer, bufferOffset).nextSeqNo(seqNum);
-        encodingLength += sequenceEncoder.encodedLength();
+            sequenceEncoder.wrap(directBuffer, bufferOffset).nextSeqNo(SequenceEncoder.nextSeqNoNullValue());
+            //sequenceEncoder.nextSeqNo(seqNum);
+            encodingLength += sequenceEncoder.encodedLength();
+            isGenerated = true;
+        }
 
         byteBuffer.limit(encodingLength);
         try {
-            System.out.println(" >> TwimeHeartBeatProcess send sequence, seqNum: " + seqNum  + " |encodingLength: " + encodingLength + " .....");
+            System.out.println(" >> TwimeHeartBeatProcess send sequence ...");
             channel.write(byteBuffer);
         } catch (IOException e) {
             e.printStackTrace();
