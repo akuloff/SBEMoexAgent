@@ -4,10 +4,7 @@ import SimpleIOSocket.ReadSocketProcess;
 import SimpleIOSocket.SimpleSocketClient;
 import SimpleIOSocket.TwimeClient;
 import org.agrona.concurrent.UnsafeBuffer;
-import sbe.EstablishEncoder;
-import sbe.MessageHeaderEncoder;
-import sbe.SecurityTypeEnum;
-import sbe.SideEnum;
+import sbe.*;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -35,6 +32,15 @@ public class ConsoleLauncher {
         WritableByteChannel outChannel;
         long intervalMsec = 10000L;
         TwimeClient twimeClient = new TwimeClient();
+
+        /*
+        ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
+        UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
+        Decimal5Encoder decimal5Encoder = new Decimal5Encoder();
+        decimal5Encoder.wrap(directBuffer, 0);
+        decimal5Encoder.mantissa(106000);
+        System.out.println(decimal5Encoder.toString());
+        */
 
         simpleSocketClient = new SimpleSocketClient("91.208.232.244", 9000);
         simpleSocketClient.doConnect();
@@ -72,14 +78,17 @@ public class ConsoleLauncher {
                 twimeClient.sendEstablish(userName);
 
                 try {
-                    //период работы
+                    //период работы клиента
 
-                    Thread.sleep(20000);
+                    Thread.sleep(10000);
 
-                    System.out.println("send mass cancel ...");
-                    twimeClient.sendOrderMassCancelRequest(0, 0, 1, SecurityTypeEnum.Future, SideEnum.AllOrders, "");
+                    //System.out.println("send mass cancel ...");
+                    //twimeClient.sendOrderMassCancelRequest(0, 0, 1, SecurityTypeEnum.Future, SideEnum.AllOrders, "");
 
-                    Thread.sleep(5000);
+                    //System.out.println("send new order ...");
+                    //twimeClient.sendNewOrderSingle(System.currentTimeMillis(), 10600000000L, 1L, 398210, 0, TimeInForceEnum.Day, SideEnum.Buy);
+
+                    Thread.sleep(10000);
 
                     System.out.println("end sleep ...");
                     if (twimeClient.getHeartBeatProcess() != null) {

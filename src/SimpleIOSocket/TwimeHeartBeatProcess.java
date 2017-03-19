@@ -22,6 +22,7 @@ public class TwimeHeartBeatProcess implements Runnable{
     UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
     private boolean isGenerated = false;
     private int encodingLength = 0;
+    private TwimeClient twimeClient = null;
 
     MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     SequenceEncoder sequenceEncoder = new SequenceEncoder();
@@ -77,7 +78,7 @@ public class TwimeHeartBeatProcess implements Runnable{
         while(!isStopped){
             try {
                 Thread.sleep(intervalMsec);
-                if(!isStopped) {
+                if(!isStopped && needSendHeartbeat()) {
                     sendSequence(sequenceNum);
                     //sequenceNum ++;
                 }
@@ -86,5 +87,24 @@ public class TwimeHeartBeatProcess implements Runnable{
                 isStopped = true;
             }
         }
+    }
+
+    public TwimeClient getTwimeClient() {
+        return twimeClient;
+    }
+
+    public TwimeHeartBeatProcess setTwimeClient(TwimeClient twimeClient) {
+        this.twimeClient = twimeClient;
+        return this;
+    }
+
+    private boolean needSendHeartbeat(){
+        boolean result = true;
+        if (twimeClient != null){
+            if (System.currentTimeMillis() - twimeClient.getLastSendTime() < intervalMsec) {
+                result = false;
+            }
+        }
+        return result;
     }
 }
