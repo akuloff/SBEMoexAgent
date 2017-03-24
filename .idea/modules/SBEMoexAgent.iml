@@ -10,5 +10,6 @@
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="org.agrona:agrona:0.9.3" level="project" />
+    <orderEntry type="library" name="alfajavatrading" level="application" />
   </component>
 </module>

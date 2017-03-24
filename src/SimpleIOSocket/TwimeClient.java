@@ -17,7 +17,6 @@ public class TwimeClient {
     private long intervalMsec = 0;
     private WritableByteChannel outputChannel = null;
     private String userAccount = null;
-    private boolean useCashedEncoder = false; //TODO кеширование енкодера для сообщений
     private long lastSendTime = 0;//время последней отправки сообщения
 
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
