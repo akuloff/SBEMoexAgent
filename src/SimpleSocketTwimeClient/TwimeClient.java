@@ -1,4 +1,4 @@
-package SimpleIOSocket;
+package SimpleSocketTwimeClient;
 
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.*;

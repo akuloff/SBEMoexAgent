@@ -1,4 +1,4 @@
-package SimpleIOSocket;
+package SimpleSocketTwimeClient;
 
 import java.io.IOException;
 import java.net.Socket;

@@ -1,8 +1,7 @@
-package SimpleIOSocket;
+package SimpleSocketTwimeClient;
 
 import org.agrona.concurrent.UnsafeBuffer;
 
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;

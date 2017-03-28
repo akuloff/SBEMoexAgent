@@ -1,7 +1,6 @@
-package SimpleIOSocket;
+package SimpleSocketTwimeClient;
 
 import org.agrona.concurrent.UnsafeBuffer;
-import sbe.EstablishEncoder;
 import sbe.MessageHeaderEncoder;
 import sbe.SequenceEncoder;
 
