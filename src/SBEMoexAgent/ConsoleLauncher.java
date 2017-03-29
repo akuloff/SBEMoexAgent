@@ -3,6 +3,8 @@ package SBEMoexAgent;
 import SimpleSocketTwimeClient.ReadSocketProcess;
 import SimpleSocketTwimeClient.SimpleSocketClient;
 import SimpleSocketTwimeClient.TwimeClient;
+import sbe.SideEnum;
+import sbe.TimeInForceEnum;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -82,7 +84,7 @@ public class ConsoleLauncher {
                     //twimeClient.sendOrderMassCancelRequest(0, 0, 1, SecurityTypeEnum.Future, SideEnum.AllOrders, "");
 
                     //System.out.println("send new order ...");
-                    //twimeClient.sendNewOrderSingle(System.currentTimeMillis(), 10600000000L, 1L, 398210, 0, TimeInForceEnum.Day, SideEnum.Buy);
+                    //twimeClient.sendNewOrderSingle(System.currentTimeMillis(), 110000, 1L, 398210, 0, TimeInForceEnum.Day, SideEnum.Buy);
 
                     Thread.sleep(10000);
 

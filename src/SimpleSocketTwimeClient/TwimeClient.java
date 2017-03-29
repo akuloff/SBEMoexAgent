@@ -1,9 +1,11 @@
 package SimpleSocketTwimeClient;
 
+import com.alfajavatrading.TradePrimitives.TradeOrder;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.*;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
@@ -33,14 +35,17 @@ public class TwimeClient {
     private OrderMassCancelResponseDecoder orderMassCancelResponseDecoder = new OrderMassCancelResponseDecoder();
     private SessionRejectDecoder sessionRejectDecoder = new SessionRejectDecoder();
     private NewOrderRejectDecoder newOrderRejectDecoder = new NewOrderRejectDecoder();
+    private NewOrderSingleResponseDecoder newOrderSingleResponseDecoder = new NewOrderSingleResponseDecoder();
+    private OrderCancelResponseDecoder orderCancelResponseDecoder = new OrderCancelResponseDecoder();
 
     //encoders
     private EstablishEncoder establishEncoder = new EstablishEncoder();
     private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
     private NewOrderSingleEncoder newOrderSingleEncoder = new NewOrderSingleEncoder();
 
+    private BigDecimal priceMultiplication = new BigDecimal(100000);
 
-    public void sendNewOrderSingle(long clOrdId, long price, long amount, int securityId, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
+    public void sendNewOrderSingle(long clOrdId, double price, long amount, int securityId, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
         bufferOffset = encodingLength = 0;
         byteBuffer.clear();
 
@@ -53,7 +58,8 @@ public class TwimeClient {
         encodingLength += headerEncoder.encodedLength();
 
         newOrderSingleEncoder.wrap(directBuffer, bufferOffset);
-        newOrderSingleEncoder.price().mantissa(price);
+        long longPrice = new BigDecimal(price).multiply(priceMultiplication).longValue();
+        newOrderSingleEncoder.price().mantissa(longPrice);
         newOrderSingleEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).checkLimit(CheckLimitEnum.Check).expireDate(NewOrderSingleEncoder.expireDateNullValue());
 
         encodingLength += newOrderSingleEncoder.encodedLength();
@@ -151,6 +157,35 @@ public class TwimeClient {
                     newOrderRejectDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     System.out.println("NewOrderReject, clOrdId: " + newOrderRejectDecoder.clOrdID() + " |reason(code): " + newOrderRejectDecoder.ordRejReason());
                     break;
+                case NewOrderSingleResponseDecoder.TEMPLATE_ID:
+                    newOrderSingleResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    //TradeOrder order = new TradeOrder();
+                    //order.setClientOrderId("" + newOrderSingleResponseDecoder.clOrdID());
+
+                    System.out.println("newOrderSingleResponse ....");
+                    System.out.println("clOrdID: " + newOrderSingleResponseDecoder.clOrdID());
+                    System.out.println("timestamp: " + new java.util.Date(newOrderSingleResponseDecoder.timestamp()));
+                    System.out.println("ExpireDate: " + new java.util.Date(newOrderSingleResponseDecoder.expireDate()));
+                    System.out.println("OrderID: " + newOrderSingleResponseDecoder.orderID());
+                    System.out.println("price: " + newOrderSingleResponseDecoder.price().toString());
+                    System.out.println("SecurityID: " + newOrderSingleResponseDecoder.securityID());
+                    System.out.println("OrderQty: " + newOrderSingleResponseDecoder.orderQty());
+                    System.out.println("TradingSessionID: " + newOrderSingleResponseDecoder.tradingSessionID());
+                    System.out.println("ClOrdLinkID: " + newOrderSingleResponseDecoder.clOrdLinkID());
+                    System.out.println("Side: " + newOrderSingleResponseDecoder.side().toString());
+
+                    break;
+                case OrderCancelResponseDecoder.TEMPLATE_ID:
+                    orderCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    System.out.println("orderCancelResponse ....");
+                    System.out.println("clOrdId: " + orderCancelResponseDecoder.clOrdID());
+                    System.out.println("Timestamp: " + new java.util.Date(orderCancelResponseDecoder.timestamp()));
+                    System.out.println("orderId: " + orderCancelResponseDecoder.orderID());
+                    System.out.println("Flags: " + orderCancelResponseDecoder.flags());
+                    System.out.println("OrderQty: " + orderCancelResponseDecoder.orderQty());
+                    System.out.println("TradingSessionID: " + orderCancelResponseDecoder.tradingSessionID());
+                    System.out.println("ClOrdLinkID: " + orderCancelResponseDecoder.clOrdLinkID());
+                    break;
             }
         }
     }
@@ -190,3 +225,4 @@ public class TwimeClient {
         return lastSendTime;
     }
 }
+
