@@ -1,8 +1,9 @@
 package SBEMoexAgent;
 
+import SimpleSocketTwimeClient.AbstractTwimeClient;
+import SimpleSocketTwimeClient.MyTwimeClient;
 import SimpleSocketTwimeClient.ReadSocketProcess;
 import SimpleSocketTwimeClient.SimpleSocketClient;
-import SimpleSocketTwimeClient.TwimeClient;
 import sbe.SideEnum;
 import sbe.TimeInForceEnum;
 
@@ -30,7 +31,7 @@ public class ConsoleLauncher {
         ReadSocketProcess readSocketProcess;
         WritableByteChannel outChannel;
         long intervalMsec = 10000L;
-        TwimeClient twimeClient = new TwimeClient();
+        MyTwimeClient myTwimeClient = new MyTwimeClient();
 
         /*
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
@@ -53,15 +54,13 @@ public class ConsoleLauncher {
                     protected void processMessage(int actualReaded) {
                         super.processMessage(actualReaded);
                         //System.out.println("byte array, size: " + actualReaded + "\n" + byteArrayToHex(dataBuffer, actualReaded));
-                        twimeClient.decodeMessage(unsafeBuffer);
+                        myTwimeClient.decodeMessage(unsafeBuffer);
                     }
 
                     @Override
                     protected void onStop() {
                         super.onStop();
-                        if(twimeClient != null && twimeClient.getHeartBeatProcess() != null){
-                            twimeClient.getHeartBeatProcess().setStopped(true);
-                        }
+                        myTwimeClient.stopHeartBeatProcess();
                     }
                 };
 
@@ -72,26 +71,25 @@ public class ConsoleLauncher {
                 String userAccount = System.getProperty("userAccount");
                 System.out.println("userName: " + userName + " |userAccount: " + userAccount);
 
-                twimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
-                twimeClient.setUserAccount(userAccount);
-                twimeClient.sendEstablish(userName);
+                myTwimeClient.setIntervalMsec(intervalMsec - 1000).setOutputChannel(outChannel);
+                myTwimeClient.setUserAccount(userAccount);
+                myTwimeClient.sendEstablish(userName);
 
                 try {
                     //период работы клиента
                     Thread.sleep(10000);
 
                     //System.out.println("send mass cancel ...");
-                    //twimeClient.sendOrderMassCancelRequest(0, 0, 1, SecurityTypeEnum.Future, SideEnum.AllOrders, "");
+                    //abstractTwimeClient.sendOrderMassCancelRequest(0, 0, 1, SecurityTypeEnum.Future, SideEnum.AllOrders, "");
 
                     //System.out.println("send new order ...");
-                    //twimeClient.sendNewOrderSingle(System.currentTimeMillis(), 110000, 1L, 398210, 0, TimeInForceEnum.Day, SideEnum.Buy);
+                    //myTwimeClient.sendNewOrderSingle(System.currentTimeMillis(), 111000, 1L, 398210, 0, TimeInForceEnum.Day, SideEnum.Sell);
 
                     Thread.sleep(10000);
 
                     System.out.println("end sleep ...");
-                    if (twimeClient.getHeartBeatProcess() != null) {
-                        twimeClient.getHeartBeatProcess().setStopped(true);
-                    }
+                    myTwimeClient.stopHeartBeatProcess();
+
                     t.join();
                 } catch (InterruptedException e) {
                     e.printStackTrace();

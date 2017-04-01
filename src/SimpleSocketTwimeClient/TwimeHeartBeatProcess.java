@@ -21,7 +21,7 @@ public class TwimeHeartBeatProcess implements Runnable{
     UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
     private boolean isGenerated = false;
     private int encodingLength = 0;
-    private TwimeClient twimeClient = null;
+    private AbstractTwimeClient abstractTwimeClient = null;
 
     MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     SequenceEncoder sequenceEncoder = new SequenceEncoder();
@@ -88,19 +88,19 @@ public class TwimeHeartBeatProcess implements Runnable{
         }
     }
 
-    public TwimeClient getTwimeClient() {
-        return twimeClient;
+    public AbstractTwimeClient getAbstractTwimeClient() {
+        return abstractTwimeClient;
     }
 
-    public TwimeHeartBeatProcess setTwimeClient(TwimeClient twimeClient) {
-        this.twimeClient = twimeClient;
+    public TwimeHeartBeatProcess setAbstractTwimeClient(AbstractTwimeClient abstractTwimeClient) {
+        this.abstractTwimeClient = abstractTwimeClient;
         return this;
     }
 
     private boolean needSendHeartbeat(){
         boolean result = true;
-        if (twimeClient != null){
-            if (System.currentTimeMillis() - twimeClient.getLastSendTime() < intervalMsec) {
+        if (abstractTwimeClient != null){
+            if (System.currentTimeMillis() - abstractTwimeClient.getLastSendTime() < intervalMsec) {
                 result = false;
             }
         }

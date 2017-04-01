@@ -1,6 +1,5 @@
 package SimpleSocketTwimeClient;
 
-import com.alfajavatrading.TradePrimitives.TradeOrder;
 import org.agrona.concurrent.UnsafeBuffer;
 import sbe.*;
 
@@ -12,7 +11,7 @@ import java.nio.channels.WritableByteChannel;
 /**
  * Created by mpoke_000 on 08.03.2017.
  */
-public class TwimeClient {
+public class AbstractTwimeClient {
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private long sequenceNum = 0;
     private TwimeHeartBeatProcess heartBeatProcess = null;
@@ -37,6 +36,7 @@ public class TwimeClient {
     private NewOrderRejectDecoder newOrderRejectDecoder = new NewOrderRejectDecoder();
     private NewOrderSingleResponseDecoder newOrderSingleResponseDecoder = new NewOrderSingleResponseDecoder();
     private OrderCancelResponseDecoder orderCancelResponseDecoder = new OrderCancelResponseDecoder();
+    private ExecutionSingleReportDecoder executionSingleReportDecoder = new ExecutionSingleReportDecoder();
 
     //encoders
     private EstablishEncoder establishEncoder = new EstablishEncoder();
@@ -122,7 +122,7 @@ public class TwimeClient {
         if (templateId > 0 && version > 0) {
 
             if (SequenceDecoder.TEMPLATE_ID != templateId) {
-                System.out.println("  <<<< TwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
+                System.out.println("  <<<< AbstractTwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
             } else {
                 sequenceDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                 System.out.println(" .............. < heartbeat < ..............  nextSeqNo: " + sequenceDecoder.nextSeqNo());
@@ -131,11 +131,7 @@ public class TwimeClient {
             switch (templateId) {
                 case EstablishmentAckDecoder.TEMPLATE_ID: //establishmentAsk (начало сессии)
                     establishmentAckDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    sequenceNum = establishmentAckDecoder.nextSeqNo();
-                    if (heartBeatProcess == null) {
-                        heartBeatProcess = new TwimeHeartBeatProcess(sequenceNum, outputChannel, intervalMsec);
-                    }
-                    new Thread(heartBeatProcess).start();
+                    onEstablishmentAck(establishmentAckDecoder);
                     break;
                 //case SequenceDecoder.TEMPLATE_ID://heartbeat (sequence)
                     //sequenceDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
@@ -143,52 +139,52 @@ public class TwimeClient {
                     //break;
                 case TerminateDecoder.TEMPLATE_ID: //terminate
                     terminateDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    System.out.println("terminate, reason: " + terminateDecoder.terminationCode().toString());
+                    onTerminate(terminateDecoder);
                     break;
                 case OrderMassCancelResponseDecoder.TEMPLATE_ID:
                     orderMassCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    System.out.println("OrderMassCancelResponse, totalaffected: " + orderMassCancelResponseDecoder.totalAffectedOrders() + " |reject reason: " + orderMassCancelResponseDecoder.ordRejReason());
+                    onOrderMassCancelResponse(orderMassCancelResponseDecoder);
                     break;
                 case SessionRejectDecoder.TEMPLATE_ID:
                     sessionRejectDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    System.out.println("SessionReject, clordid: " + sessionRejectDecoder.clOrdID() + " |refTagId: " + sessionRejectDecoder.refTagID() + " |reason: " + sessionRejectDecoder.sessionRejectReason().toString());
+                    onSessionReject(sessionRejectDecoder);
                     break;
                 case NewOrderRejectDecoder.TEMPLATE_ID:
                     newOrderRejectDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    System.out.println("NewOrderReject, clOrdId: " + newOrderRejectDecoder.clOrdID() + " |reason(code): " + newOrderRejectDecoder.ordRejReason());
+                    onNewOrderReject(newOrderRejectDecoder);
                     break;
                 case NewOrderSingleResponseDecoder.TEMPLATE_ID:
                     newOrderSingleResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    //TradeOrder order = new TradeOrder();
-                    //order.setClientOrderId("" + newOrderSingleResponseDecoder.clOrdID());
-
-                    System.out.println("newOrderSingleResponse ....");
-                    System.out.println("clOrdID: " + newOrderSingleResponseDecoder.clOrdID());
-                    System.out.println("timestamp: " + new java.util.Date(newOrderSingleResponseDecoder.timestamp()));
-                    System.out.println("ExpireDate: " + new java.util.Date(newOrderSingleResponseDecoder.expireDate()));
-                    System.out.println("OrderID: " + newOrderSingleResponseDecoder.orderID());
-                    System.out.println("price: " + newOrderSingleResponseDecoder.price().toString());
-                    System.out.println("SecurityID: " + newOrderSingleResponseDecoder.securityID());
-                    System.out.println("OrderQty: " + newOrderSingleResponseDecoder.orderQty());
-                    System.out.println("TradingSessionID: " + newOrderSingleResponseDecoder.tradingSessionID());
-                    System.out.println("ClOrdLinkID: " + newOrderSingleResponseDecoder.clOrdLinkID());
-                    System.out.println("Side: " + newOrderSingleResponseDecoder.side().toString());
-
+                    onNewOrderSingleResponse(newOrderSingleResponseDecoder);
                     break;
                 case OrderCancelResponseDecoder.TEMPLATE_ID:
                     orderCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
-                    System.out.println("orderCancelResponse ....");
-                    System.out.println("clOrdId: " + orderCancelResponseDecoder.clOrdID());
-                    System.out.println("Timestamp: " + new java.util.Date(orderCancelResponseDecoder.timestamp()));
-                    System.out.println("orderId: " + orderCancelResponseDecoder.orderID());
-                    System.out.println("Flags: " + orderCancelResponseDecoder.flags());
-                    System.out.println("OrderQty: " + orderCancelResponseDecoder.orderQty());
-                    System.out.println("TradingSessionID: " + orderCancelResponseDecoder.tradingSessionID());
-                    System.out.println("ClOrdLinkID: " + orderCancelResponseDecoder.clOrdLinkID());
+                    onOrderCancelResponse(orderCancelResponseDecoder);
+                    break;
+                case ExecutionSingleReportDecoder.TEMPLATE_ID:
+                    executionSingleReportDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onExecutionSingleReport(executionSingleReportDecoder);
                     break;
             }
         }
     }
+
+    protected void onEstablishmentAck(EstablishmentAckDecoder decoder){
+        sequenceNum = establishmentAckDecoder.nextSeqNo();
+        if (heartBeatProcess == null) {
+            heartBeatProcess = new TwimeHeartBeatProcess(sequenceNum, outputChannel, intervalMsec);
+        }
+        new Thread(heartBeatProcess).start();
+    }
+
+    protected void onTerminate(TerminateDecoder decoder){}
+    protected void onOrderMassCancelResponse(OrderMassCancelResponseDecoder decoder){}
+    protected void onSessionReject(SessionRejectDecoder decoder){}
+    protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
+    protected void onNewOrderSingleResponse(NewOrderSingleResponseDecoder decoder){}
+    protected void onOrderCancelResponse(OrderCancelResponseDecoder decoder){}
+    protected void onExecutionSingleReport(ExecutionSingleReportDecoder decoder){}
+
 
     public TwimeHeartBeatProcess getHeartBeatProcess() {
         return heartBeatProcess;
@@ -198,7 +194,7 @@ public class TwimeClient {
         return intervalMsec;
     }
 
-    public TwimeClient setIntervalMsec(long intervalMsec) {
+    public AbstractTwimeClient setIntervalMsec(long intervalMsec) {
         this.intervalMsec = intervalMsec;
         return this;
     }
@@ -207,7 +203,7 @@ public class TwimeClient {
         return outputChannel;
     }
 
-    public TwimeClient setOutputChannel(WritableByteChannel outputChannel) {
+    public AbstractTwimeClient setOutputChannel(WritableByteChannel outputChannel) {
         this.outputChannel = outputChannel;
         return this;
     }
@@ -216,13 +212,19 @@ public class TwimeClient {
         return userAccount;
     }
 
-    public TwimeClient setUserAccount(String userAccount) {
+    public AbstractTwimeClient setUserAccount(String userAccount) {
         this.userAccount = userAccount;
         return this;
     }
 
     public long getLastSendTime() {
         return lastSendTime;
+    }
+
+    public void stopHeartBeatProcess(){
+        if (this.getHeartBeatProcess() != null) {
+            this.getHeartBeatProcess().setStopped(true);
+        }
     }
 }
 

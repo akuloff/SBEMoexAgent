@@ -9,24 +9,26 @@ import java.util.HashMap;
 /**
  * Created by mpoke_000 on 21.03.2017.
  */
-public class OrdersLibrary implements Serializable{
-    private HashMap<String, TradeOrder> activeOrders = new HashMap<>();
+public class TradeOrdersContainer implements Serializable{
+    private HashMap<String, TradeOrder> activeOrdersClientId = new HashMap<>();
+    private HashMap<String, TradeOrder> activeOrdersSystemId = new HashMap<>();
     private HashMap<String, TradeOrder> processedOrders = new HashMap<>();
 
-    public TradeOrder getActiveOrder(String clientOrderId){
+    public TradeOrder getActiveOrderByClientId(String clientOrderId){
         TradeOrder order = null;
-        if (activeOrders.containsKey(clientOrderId)) {
-            order = activeOrders.get(clientOrderId);
+        if (activeOrdersClientId.containsKey(clientOrderId)) {
+            order = activeOrdersClientId.get(clientOrderId);
         }
         return order;
     }
 
     public void addActiveOrder(TradeOrder order) {
-        activeOrders.put(order.getClientOrderId(), order);
+        activeOrdersClientId.put(order.getClientOrderId(), order);
+        activeOrdersSystemId.put(order.getOrderId(), order);
     }
 
     public void addProcessedOrder(TradeOrder order) {
-        processedOrders.put(order.getClientOrderId(), order);
+        processedOrders.put(order.getOrderId(), order);
     }
 
     public void addOrder(TradeOrder order){
