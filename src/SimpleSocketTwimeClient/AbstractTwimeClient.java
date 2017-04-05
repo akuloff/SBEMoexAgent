@@ -43,7 +43,7 @@ public class AbstractTwimeClient {
     private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
     private NewOrderSingleEncoder newOrderSingleEncoder = new NewOrderSingleEncoder();
 
-    private BigDecimal priceMultiplication = new BigDecimal(100000);
+    private BigDecimal priceMultiplier = new BigDecimal(100000);
 
     public void sendNewOrderSingle(long clOrdId, double price, long amount, int securityId, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
         bufferOffset = encodingLength = 0;
@@ -58,7 +58,7 @@ public class AbstractTwimeClient {
         encodingLength += headerEncoder.encodedLength();
 
         newOrderSingleEncoder.wrap(directBuffer, bufferOffset);
-        long longPrice = new BigDecimal(price).multiply(priceMultiplication).longValue();
+        long longPrice = new BigDecimal(price).multiply(priceMultiplier).longValue();
         newOrderSingleEncoder.price().mantissa(longPrice);
         newOrderSingleEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).checkLimit(CheckLimitEnum.Check).expireDate(NewOrderSingleEncoder.expireDateNullValue());
 

@@ -4,6 +4,8 @@ import SimpleSocketTwimeClient.AbstractTwimeClient;
 import SimpleSocketTwimeClient.MyTwimeClient;
 import SimpleSocketTwimeClient.ReadSocketProcess;
 import SimpleSocketTwimeClient.SimpleSocketClient;
+import TradeEnvironment.Library;
+import TradeEnvironment.TradeOrdersContainer;
 import sbe.SideEnum;
 import sbe.TimeInForceEnum;
 
@@ -33,6 +35,15 @@ public class ConsoleLauncher {
         long intervalMsec = 10000L;
         MyTwimeClient myTwimeClient = new MyTwimeClient();
 
+        TradeOrdersContainer tradeOrdersContainer;
+        String ordersFilename = "orders.dat";
+
+
+        tradeOrdersContainer = Library.readOrdersContainerFromFile(ordersFilename);
+        if (tradeOrdersContainer == null) {
+            tradeOrdersContainer = new TradeOrdersContainer();
+        }
+
         /*
         ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
         UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
@@ -41,6 +52,8 @@ public class ConsoleLauncher {
         decimal5Encoder.mantissa(106000);
         System.out.println(decimal5Encoder.toString());
         */
+
+        myTwimeClient.setTradeOrdersContainer(tradeOrdersContainer);
 
         simpleSocketClient = new SimpleSocketClient("91.208.232.244", 9000);
         simpleSocketClient.doConnect();
@@ -101,6 +114,8 @@ public class ConsoleLauncher {
                 e.printStackTrace();
             }
         }
+
+        Library.saveOrdersContainerToFile(tradeOrdersContainer, ordersFilename);
     }
 
 }
