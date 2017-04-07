@@ -226,5 +226,9 @@ public class AbstractTwimeClient {
             this.getHeartBeatProcess().setStopped(true);
         }
     }
+
+    protected long generateNewClientOrderId(){
+        return System.currentTimeMillis();
+    }
 }
 

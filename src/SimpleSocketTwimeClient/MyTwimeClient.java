@@ -1,6 +1,7 @@
 package SimpleSocketTwimeClient;
 
 import TradeEnvironment.TradeOrdersContainer;
+import com.alfajavatrading.TradePrimitives.TradeOrder;
 import sbe.ExecutionSingleReportDecoder;
 import sbe.NewOrderRejectDecoder;
 import sbe.NewOrderSingleResponseDecoder;
@@ -43,5 +44,9 @@ public class MyTwimeClient extends AbstractTwimeClient{
     public MyTwimeClient setTradeOrdersContainer(TradeOrdersContainer tradeOrdersContainer) {
         this.tradeOrdersContainer = tradeOrdersContainer;
         return this;
+    }
+
+    public void sendNewOrderSingle(){
+        //TradeOrder order = new TradeOrder();
     }
 }
