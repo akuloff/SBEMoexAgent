@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" build-on-make="true" name="SBEMoexAgent:jar">
+    <output-path>$PROJECT_DIR$/classes/artifacts/SBEMoexAgent_jar</output-path>
+    <root id="archive" name="SBEMoexAgent.jar">
+      <element id="module-output" name="SBEMoexAgent" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/agrona/agrona/0.9.3/agrona-0.9.3.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$PROJECT_DIR$/../alfajavatrading/out/artifacts/alfajavatrading_jar/alfajavatrading.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>
