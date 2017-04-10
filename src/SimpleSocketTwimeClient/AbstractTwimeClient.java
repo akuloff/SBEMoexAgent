@@ -273,7 +273,7 @@ public class AbstractTwimeClient implements Runnable{
     }
 
     public void stopHeartBeatProcess(){
-        if (this.getHeartBeatProcess() != null) {
+        if (this.getHeartBeatProcess() != null && !this.getHeartBeatProcess().isStopped()) {
             this.getHeartBeatProcess().setStopped(true);
         }
     }
