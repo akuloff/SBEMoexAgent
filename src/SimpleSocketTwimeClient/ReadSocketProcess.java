@@ -52,13 +52,9 @@ public class ReadSocketProcess implements Runnable {
     }
 
 
-    protected void processMessage(int actualReaded){
+    protected void processMessage(int actualReaded){}
 
-    }
-
-    protected void onStop(){
-
-    }
+    protected void onStop(){}
 
     public boolean isStopped() {
         return isStopped;

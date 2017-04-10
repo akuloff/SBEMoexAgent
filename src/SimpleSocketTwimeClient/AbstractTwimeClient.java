@@ -4,20 +4,23 @@ import org.agrona.concurrent.UnsafeBuffer;
 import sbe.*;
 
 import java.io.IOException;
+import java.io.OutputStream;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 
 /**
  * Created by mpoke_000 on 08.03.2017.
  */
-public class AbstractTwimeClient {
+public class AbstractTwimeClient implements Runnable{
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     private long sequenceNum = 0;
     private TwimeHeartBeatProcess heartBeatProcess = null;
     private long intervalMsec = 0;
     private WritableByteChannel outputChannel = null;
     private String userAccount = null;
+    private String clientId = null;
     private long lastSendTime = 0;//время последней отправки сообщения
 
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
@@ -26,6 +29,9 @@ public class AbstractTwimeClient {
 
     private int bufferOffset = 0;
     private int encodingLength = 0;
+
+    private String hostAddress = null;
+    private int connectionPort;
 
     //decoders
     private EstablishmentAckDecoder establishmentAckDecoder = new EstablishmentAckDecoder();
@@ -44,6 +50,51 @@ public class AbstractTwimeClient {
     private NewOrderSingleEncoder newOrderSingleEncoder = new NewOrderSingleEncoder();
 
     private BigDecimal priceMultiplier = new BigDecimal(100000);
+
+    private ReadSocketProcess readSocketProcess = null;
+
+    @Override
+    public void run() {
+        SimpleSocketClient simpleSocketClient = new SimpleSocketClient(this.hostAddress, this.connectionPort);
+        simpleSocketClient.doConnect();
+        if (simpleSocketClient.isConnected()){
+            try {
+                outputChannel = Channels.newChannel(simpleSocketClient.getSocket().getOutputStream());
+                 readSocketProcess = new ReadSocketProcess(simpleSocketClient.getSocket()){
+                    @Override
+                    protected void processMessage(int actualReaded) {
+                        super.processMessage(actualReaded);
+                        AbstractTwimeClient.this.decodeMessage(unsafeBuffer);
+                    }
+
+                    @Override
+                    protected void onStop() {
+                        super.onStop();
+                        AbstractTwimeClient.this.stopHeartBeatProcess();
+                    }
+                };
+
+                Thread connectionThread = new Thread(readSocketProcess);
+                connectionThread.start();
+
+                this.sendEstablish();
+                try {
+                    connectionThread.join();
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+                simpleSocketClient.doDisconnect();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    public void stopConnectionProcess(){
+        if (readSocketProcess != null && !readSocketProcess.isStopped()){
+            readSocketProcess.setStopped(true);
+        }
+    }
 
     public void sendNewOrderSingle(long clOrdId, double price, long amount, int securityId, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
         bufferOffset = encodingLength = 0;
@@ -85,7 +136,7 @@ public class AbstractTwimeClient {
         sendBuffer(encodingLength);
     }
 
-    public void sendEstablish(String clientId) throws IOException {
+    public void sendEstablish() throws IOException {
         bufferOffset = encodingLength = 0;
         if (outputChannel != null) {
             byteBuffer.clear();
@@ -199,21 +250,21 @@ public class AbstractTwimeClient {
         return this;
     }
 
-    public WritableByteChannel getOutputChannel() {
-        return outputChannel;
-    }
-
-    public AbstractTwimeClient setOutputChannel(WritableByteChannel outputChannel) {
-        this.outputChannel = outputChannel;
-        return this;
-    }
-
     public String getUserAccount() {
         return userAccount;
     }
 
     public AbstractTwimeClient setUserAccount(String userAccount) {
         this.userAccount = userAccount;
+        return this;
+    }
+
+    public String getClientId() {
+        return clientId;
+    }
+
+    public AbstractTwimeClient setClientId(String clientId) {
+        this.clientId = clientId;
         return this;
     }
 
@@ -229,6 +280,24 @@ public class AbstractTwimeClient {
 
     protected long generateNewClientOrderId(){
         return System.currentTimeMillis();
+    }
+
+    public String getHostAddress() {
+        return hostAddress;
+    }
+
+    public AbstractTwimeClient setHostAddress(String hostAddress) {
+        this.hostAddress = hostAddress;
+        return this;
+    }
+
+    public int getConnectionPort() {
+        return connectionPort;
+    }
+
+    public AbstractTwimeClient setConnectionPort(int connectionPort) {
+        this.connectionPort = connectionPort;
+        return this;
     }
 }
 

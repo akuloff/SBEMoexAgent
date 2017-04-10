@@ -7,13 +7,13 @@ import java.net.Socket;
  * Created by mpoke_000 on 07.03.2017.
  */
 public class SimpleSocketClient {
-    private String serverAddr = null;
-    private int serverPort = 0;
+    private String hostAddress = null;
+    private int port = 0;
     private Socket socket;
 
-    public SimpleSocketClient(String serverAddr, int serverPort) {
-        this.serverAddr = serverAddr;
-        this.serverPort = serverPort;
+    public SimpleSocketClient(String hostAddress, int port) {
+        this.hostAddress = hostAddress;
+        this.port = port;
     }
 
     public boolean isConnected(){
@@ -22,7 +22,7 @@ public class SimpleSocketClient {
 
     public void doConnect(){
         try {
-            socket = new Socket(serverAddr, serverPort);
+            socket = new Socket(hostAddress, port);
             System.out.println("is connected: " + socket.isConnected() + " |time: " + new java.util.Date(System.currentTimeMillis()));
         } catch (IOException e) {
             e.printStackTrace();
@@ -45,5 +45,23 @@ public class SimpleSocketClient {
 
     public Socket getSocket() {
         return socket;
+    }
+
+    public String getHostAddress() {
+        return hostAddress;
+    }
+
+    public SimpleSocketClient setHostAddress(String hostAddress) {
+        this.hostAddress = hostAddress;
+        return this;
+    }
+
+    public int getPort() {
+        return port;
+    }
+
+    public SimpleSocketClient setPort(int port) {
+        this.port = port;
+        return this;
     }
 }
