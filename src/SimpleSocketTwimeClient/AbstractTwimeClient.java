@@ -49,7 +49,7 @@ public class AbstractTwimeClient implements Runnable{
     private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
     private NewOrderSingleEncoder newOrderSingleEncoder = new NewOrderSingleEncoder();
 
-    private BigDecimal priceMultiplier = new BigDecimal(100000);
+    protected BigDecimal priceMultiplier = new BigDecimal(100000);
 
     private ReadSocketProcess readSocketProcess = null;
 
@@ -160,7 +160,7 @@ public class AbstractTwimeClient implements Runnable{
         lastSendTime = System.currentTimeMillis();
     }
 
-    public void decodeMessage(UnsafeBuffer unsafeBuffer){
+    public synchronized void decodeMessage(UnsafeBuffer unsafeBuffer){
         int bytesOffset = 0;
         messageHeaderDecoder.wrap(unsafeBuffer, bytesOffset);
 
@@ -278,7 +278,7 @@ public class AbstractTwimeClient implements Runnable{
         }
     }
 
-    protected long generateNewClientOrderId(){
+    public long generateNewClientOrderId(){
         return System.currentTimeMillis();
     }
 
