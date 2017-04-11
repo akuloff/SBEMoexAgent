@@ -96,7 +96,7 @@ public class AbstractTwimeClient implements Runnable{
         }
     }
 
-    public void sendNewOrderSingle(long clOrdId, double price, long amount, int securityId, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
+    public void sendNewOrderSingle(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
         bufferOffset = encodingLength = 0;
         byteBuffer.clear();
 
