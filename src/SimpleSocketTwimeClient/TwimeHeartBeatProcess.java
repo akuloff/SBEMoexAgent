@@ -9,7 +9,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 
 /**
- * Created by mpoke_000 on 09.03.2017.
+ * процесс отправки heartbeat через TWIME
  */
 public class TwimeHeartBeatProcess implements Runnable{
     private boolean isStopped = false;

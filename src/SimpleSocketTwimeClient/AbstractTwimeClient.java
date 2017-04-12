@@ -21,7 +21,7 @@ public class AbstractTwimeClient implements Runnable{
     private WritableByteChannel outputChannel = null;
     private String userAccount = null;
     private String clientId = null;
-    private long lastSendTime = 0;//время последней отправки сообщения
+    private long lastSendTime = 0;//время последней отправки сообщения (любого) - в т.ч. для определени янеобходимости отправки heartbeat
 
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
     private UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
@@ -83,6 +83,8 @@ public class AbstractTwimeClient implements Runnable{
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
+
+                AbstractTwimeClient.this.stopHeartBeatProcess();
                 simpleSocketClient.doDisconnect();
             } catch (IOException e) {
                 e.printStackTrace();
