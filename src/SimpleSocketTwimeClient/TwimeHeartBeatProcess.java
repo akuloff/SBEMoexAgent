@@ -13,7 +13,6 @@ import java.nio.channels.WritableByteChannel;
  */
 public class TwimeHeartBeatProcess implements Runnable{
     private boolean isStopped = false;
-    private long sequenceNum = 0; //в MOEX TWIME не используется для heartbeat
     private WritableByteChannel channel = null;
     private long intervalMsec = 0;
     private byte[] bArray = new byte[4096];
@@ -26,8 +25,7 @@ public class TwimeHeartBeatProcess implements Runnable{
     MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
     SequenceEncoder sequenceEncoder = new SequenceEncoder();
 
-    public TwimeHeartBeatProcess(long sequenceNum, WritableByteChannel channel, long intervalMsec) {
-        this.sequenceNum = sequenceNum;
+    public TwimeHeartBeatProcess(WritableByteChannel channel, long intervalMsec) {
         this.channel = channel;
         this.intervalMsec = intervalMsec;
     }
@@ -78,8 +76,7 @@ public class TwimeHeartBeatProcess implements Runnable{
             try {
                 Thread.sleep(intervalMsec);
                 if(!isStopped && needSendHeartbeat()) {
-                    sendSequence(sequenceNum);
-                    //sequenceNum ++;
+                    sendSequence(1);
                 }
             } catch (InterruptedException e) {
                 e.printStackTrace();
