@@ -39,6 +39,7 @@ public class AbstractTwimeClient implements Runnable{
     private TerminateDecoder terminateDecoder = new TerminateDecoder();
     private OrderMassCancelResponseDecoder orderMassCancelResponseDecoder = new OrderMassCancelResponseDecoder();
     private SessionRejectDecoder sessionRejectDecoder = new SessionRejectDecoder();
+    private RetransmissionDecoder retransmissionDecoder = new RetransmissionDecoder();
     private NewOrderRejectDecoder newOrderRejectDecoder = new NewOrderRejectDecoder();
     private NewOrderSingleResponseDecoder newOrderSingleResponseDecoder = new NewOrderSingleResponseDecoder();
     private OrderCancelResponseDecoder orderCancelResponseDecoder = new OrderCancelResponseDecoder();
@@ -157,9 +158,9 @@ public class AbstractTwimeClient implements Runnable{
         }
     }
 
-    public void sendRetransmitRequest(long fromSeqNum, long count) throws IOException{
+    public void sendRetransmitRequest(long timestamp, long fromSeqNum, long count) throws IOException{
         sendInit();
-        retransmitRequestEncoder.wrap(directBuffer, bufferOffset).fromSeqNo(fromSeqNum).count(count);
+        retransmitRequestEncoder.wrap(directBuffer, bufferOffset).timestamp(timestamp).fromSeqNo(fromSeqNum).count(count);
         encodingLength += retransmitRequestEncoder.encodedLength();
         sendBuffer(encodingLength);
     }
@@ -181,6 +182,11 @@ public class AbstractTwimeClient implements Runnable{
 
         bytesOffset += messageHeaderDecoder.encodedLength();
         if (templateId > 0 && version > 0) {
+
+            if (SequenceDecoder.TEMPLATE_ID != templateId) {
+                System.out.println("  <<<< AbstractTwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
+            }
+
             switch (templateId) {
 
                 //Сессионный уровень (соединение)
@@ -204,6 +210,10 @@ public class AbstractTwimeClient implements Runnable{
                 case SessionRejectDecoder.TEMPLATE_ID:
                     sessionRejectDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onSessionReject(sessionRejectDecoder);
+                    break;
+                case RetransmissionDecoder.TEMPLATE_ID:
+                    retransmissionDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onRetransmission(retransmissionDecoder);
                     break;
 
                 // Прикладной уровень (торговля) - увеличивает sequenceNum
@@ -251,6 +261,7 @@ public class AbstractTwimeClient implements Runnable{
     protected void onSessionReject(SessionRejectDecoder decoder){}
     protected void onEstablishmentReject(EstablishmentRejectDecoder decoder){}
     protected void onSequence(SequenceDecoder decoder){}
+    protected void onRetransmission(RetransmissionDecoder decoder){}
 
     //торговые обработчики
     protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
