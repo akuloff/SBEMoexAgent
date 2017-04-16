@@ -24,8 +24,6 @@ public class AbstractTwimeClient implements Runnable{
 
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
     private UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
-    private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
-
     private int bufferOffset = 0;
     private int encodingLength = 0;
 
@@ -46,6 +44,7 @@ public class AbstractTwimeClient implements Runnable{
     private ExecutionSingleReportDecoder executionSingleReportDecoder = new ExecutionSingleReportDecoder();
 
     //encoders
+    private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
     private EstablishEncoder establishEncoder = new EstablishEncoder();
     private RetransmitRequestEncoder retransmitRequestEncoder = new RetransmitRequestEncoder();
     private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
@@ -100,58 +99,38 @@ public class AbstractTwimeClient implements Runnable{
         }
     }
 
-    private void sendInit(){
+    private void initSender(int templateId, int blockLength){
         bufferOffset = encodingLength = 0;
         byteBuffer.clear();
+        headerEncoder.wrap(directBuffer, bufferOffset)
+                .blockLength(blockLength)
+                .templateId(templateId)
+                .schemaId(establishEncoder.sbeSchemaId())
+                .version(establishEncoder.sbeSchemaVersion());
+        bufferOffset += headerEncoder.encodedLength();
+        encodingLength += headerEncoder.encodedLength();
     }
 
     public void sendNewOrderSingle(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
-        sendInit();
-        headerEncoder.wrap(directBuffer, bufferOffset)
-                .blockLength(newOrderSingleEncoder.sbeBlockLength())
-                .templateId(newOrderSingleEncoder.sbeTemplateId())
-                .schemaId(newOrderSingleEncoder.sbeSchemaId())
-                .version(newOrderSingleEncoder.sbeSchemaVersion());
-        bufferOffset += headerEncoder.encodedLength();
-        encodingLength += headerEncoder.encodedLength();
-
+        initSender(newOrderSingleEncoder.sbeTemplateId(), newOrderSingleEncoder.sbeBlockLength());
         newOrderSingleEncoder.wrap(directBuffer, bufferOffset);
         long longPrice = new BigDecimal(price).multiply(priceMultiplier).longValue();
         newOrderSingleEncoder.price().mantissa(longPrice);
         newOrderSingleEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).checkLimit(CheckLimitEnum.Check).expireDate(NewOrderSingleEncoder.expireDateNullValue());
-
         encodingLength += newOrderSingleEncoder.encodedLength();
         sendBuffer(encodingLength);
     }
 
     public void sendOrderMassCancelRequest(long clOrdId, int clOrdLinkID, int securityId, SecurityTypeEnum securityTypeEnum, SideEnum sideEnum, String securityGroup) throws IOException {
-        sendInit();
-        headerEncoder.wrap(directBuffer, bufferOffset)
-                .blockLength(orderMassCancelRequestEncoder.sbeBlockLength())
-                .templateId(orderMassCancelRequestEncoder.sbeTemplateId())
-                .schemaId(orderMassCancelRequestEncoder.sbeSchemaId())
-                .version(orderMassCancelRequestEncoder.sbeSchemaVersion());
-        bufferOffset += headerEncoder.encodedLength();
-        encodingLength += headerEncoder.encodedLength();
-
-        orderMassCancelRequestEncoder.wrap(directBuffer, bufferOffset);
-        orderMassCancelRequestEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkID).securityID(securityId).securityType(securityTypeEnum).side(sideEnum).securityGroup(securityGroup);
-
+        initSender(orderMassCancelRequestEncoder.sbeTemplateId(), orderMassCancelRequestEncoder.sbeBlockLength());
+        orderMassCancelRequestEncoder.wrap(directBuffer, bufferOffset).account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkID).securityID(securityId).securityType(securityTypeEnum).side(sideEnum).securityGroup(securityGroup);
         encodingLength += orderMassCancelRequestEncoder.encodedLength();
         sendBuffer(encodingLength);
     }
 
     public void sendEstablish() throws IOException {
-        sendInit();
         if (outputChannel != null) {
-            headerEncoder.wrap(directBuffer, bufferOffset)
-                    .blockLength(establishEncoder.sbeBlockLength())
-                    .templateId(establishEncoder.sbeTemplateId())
-                    .schemaId(establishEncoder.sbeSchemaId())
-                    .version(establishEncoder.sbeSchemaVersion());
-
-            bufferOffset += headerEncoder.encodedLength();
-            encodingLength += headerEncoder.encodedLength();
+            initSender(establishEncoder.sbeTemplateId(), establishEncoder.sbeBlockLength());
             establishEncoder.wrap(directBuffer, bufferOffset).credentials(clientId).keepaliveInterval(intervalMsec).timestamp(System.currentTimeMillis());
             encodingLength += establishEncoder.encodedLength();
             sendBuffer(encodingLength);
@@ -159,7 +138,7 @@ public class AbstractTwimeClient implements Runnable{
     }
 
     public void sendRetransmitRequest(long timestamp, long fromSeqNum, long count) throws IOException{
-        sendInit();
+        initSender(retransmitRequestEncoder.sbeTemplateId(), retransmitRequestEncoder.sbeBlockLength());
         retransmitRequestEncoder.wrap(directBuffer, bufferOffset).timestamp(timestamp).fromSeqNo(fromSeqNum).count(count);
         encodingLength += retransmitRequestEncoder.encodedLength();
         sendBuffer(encodingLength);
