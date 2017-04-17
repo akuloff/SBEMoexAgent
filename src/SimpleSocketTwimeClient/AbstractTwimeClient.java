@@ -15,6 +15,8 @@ import java.nio.channels.WritableByteChannel;
 public class AbstractTwimeClient implements Runnable{
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     protected long receivedSequenceNum = 0; //счетчик сообщений прикладного уровня
+    protected long retransmissionCount = 0;
+
     private TwimeHeartBeatProcess heartBeatProcess = null;
     private long intervalMsec = 0;
     private WritableByteChannel outputChannel = null;
@@ -42,6 +44,8 @@ public class AbstractTwimeClient implements Runnable{
     private NewOrderSingleResponseDecoder newOrderSingleResponseDecoder = new NewOrderSingleResponseDecoder();
     private OrderCancelResponseDecoder orderCancelResponseDecoder = new OrderCancelResponseDecoder();
     private ExecutionSingleReportDecoder executionSingleReportDecoder = new ExecutionSingleReportDecoder();
+    private SystemEventDecoder systemEventDecoder = new SystemEventDecoder();
+    private EmptyBookDecoder emptyBookDecoder = new EmptyBookDecoder();
 
     //encoders
     private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
@@ -65,7 +69,10 @@ public class AbstractTwimeClient implements Runnable{
                     @Override
                     protected void processMessage(int actualReaded) {
                         super.processMessage(actualReaded);
-                        AbstractTwimeClient.this.decodeMessage(unsafeBuffer);
+                        int currentOffset = 0;
+                        while(currentOffset < actualReaded) {
+                            currentOffset = AbstractTwimeClient.this.decodeMessage(unsafeBuffer, currentOffset);
+                        }
                     }
 
                     @Override
@@ -150,8 +157,17 @@ public class AbstractTwimeClient implements Runnable{
         lastSendTime = System.currentTimeMillis();
     }
 
-    public synchronized void decodeMessage(UnsafeBuffer unsafeBuffer){
-        int bytesOffset = 0;
+    private void increaseSequence(){
+        if (retransmissionCount > 0) {
+            System.out.println(" ----- message from retransmission, retransmissionCount: " + retransmissionCount);
+            retransmissionCount --;
+        } else {
+            receivedSequenceNum ++;
+        }
+    }
+
+    public synchronized int decodeMessage(UnsafeBuffer unsafeBuffer, int startOffset){
+        int bytesOffset = startOffset;
         messageHeaderDecoder.wrap(unsafeBuffer, bytesOffset);
 
         int templateId = messageHeaderDecoder.templateId();
@@ -161,9 +177,8 @@ public class AbstractTwimeClient implements Runnable{
 
         bytesOffset += messageHeaderDecoder.encodedLength();
         if (templateId > 0 && version > 0) {
-
             if (SequenceDecoder.TEMPLATE_ID != templateId) {
-                System.out.println("  <<<< AbstractTwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength);
+                System.out.println("  <<<< AbstractTwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength + " |bytesOffset: " + bytesOffset);
             }
 
             switch (templateId) {
@@ -192,6 +207,7 @@ public class AbstractTwimeClient implements Runnable{
                     break;
                 case RetransmissionDecoder.TEMPLATE_ID:
                     retransmissionDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    retransmissionCount = retransmissionDecoder.count();
                     onRetransmission(retransmissionDecoder);
                     break;
 
@@ -200,30 +216,44 @@ public class AbstractTwimeClient implements Runnable{
                 case OrderMassCancelResponseDecoder.TEMPLATE_ID:
                     orderMassCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onOrderMassCancelResponse(orderMassCancelResponseDecoder);
-                    receivedSequenceNum ++;
+                    increaseSequence();
                     break;
                 case NewOrderRejectDecoder.TEMPLATE_ID:
                     newOrderRejectDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onNewOrderReject(newOrderRejectDecoder);
-                    receivedSequenceNum ++;
+                    increaseSequence();
                     break;
                 case NewOrderSingleResponseDecoder.TEMPLATE_ID:
                     newOrderSingleResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onNewOrderSingleResponse(newOrderSingleResponseDecoder);
-                    receivedSequenceNum ++;
+                    increaseSequence();
                     break;
                 case OrderCancelResponseDecoder.TEMPLATE_ID:
                     orderCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onOrderCancelResponse(orderCancelResponseDecoder);
-                    receivedSequenceNum ++;
+                    increaseSequence();
                     break;
                 case ExecutionSingleReportDecoder.TEMPLATE_ID:
                     executionSingleReportDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onExecutionSingleReport(executionSingleReportDecoder);
-                    receivedSequenceNum ++;
+                    increaseSequence();
+                    break;
+                case SystemEventDecoder.TEMPLATE_ID:
+                    systemEventDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onSystemEvent(systemEventDecoder);
+                    increaseSequence();
+                    break;
+                case EmptyBookDecoder.TEMPLATE_ID:
+                    emptyBookDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onEmptyBook(emptyBookDecoder);
+                    increaseSequence();
                     break;
             }
+
+            bytesOffset += blockLength;
         }
+
+        return bytesOffset;
     }
 
     protected void onEstablishmentAck(EstablishmentAckDecoder decoder){
@@ -242,11 +272,13 @@ public class AbstractTwimeClient implements Runnable{
     protected void onSequence(SequenceDecoder decoder){}
     protected void onRetransmission(RetransmissionDecoder decoder){}
 
-    //торговые обработчики
+    //прикладные обработчики
     protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
     protected void onNewOrderSingleResponse(NewOrderSingleResponseDecoder decoder){}
     protected void onOrderCancelResponse(OrderCancelResponseDecoder decoder){}
     protected void onExecutionSingleReport(ExecutionSingleReportDecoder decoder){}
+    protected void onSystemEvent(SystemEventDecoder decoder){}
+    protected void onEmptyBook(EmptyBookDecoder decoder){}
 
 
     public TwimeHeartBeatProcess getHeartBeatProcess() {
@@ -310,6 +342,19 @@ public class AbstractTwimeClient implements Runnable{
     public AbstractTwimeClient setConnectionPort(int connectionPort) {
         this.connectionPort = connectionPort;
         return this;
+    }
+
+    public long getReceivedSequenceNum() {
+        return receivedSequenceNum;
+    }
+
+    public AbstractTwimeClient setReceivedSequenceNum(long receivedSequenceNum) {
+        this.receivedSequenceNum = receivedSequenceNum;
+        return this;
+    }
+
+    public long getRetransmissionCount() {
+        return retransmissionCount;
     }
 }
 

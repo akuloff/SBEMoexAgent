@@ -34,10 +34,10 @@ public class ReadSocketProcess implements Runnable {
                 try {
                     actualReaded = inputStream.read(dataBuffer);
                     if (actualReaded >= 0) {
-                        //System.out.println("actualReaded = " + actualReaded);
+                        System.out.println("..... ReadSocketProcess, actualReaded = " + actualReaded);
                         processMessage(actualReaded);
                     } else {
-                        System.out.println("actualReaded below zero: " + actualReaded + " do stop, time: " + new java.util.Date(System.currentTimeMillis()));
+                        System.out.println("..... ReadSocketProcess, actualReaded below zero: " + actualReaded + " do stop, time: " + new java.util.Date(System.currentTimeMillis()));
                         isStopped = true;
                         onStop();
                     }
