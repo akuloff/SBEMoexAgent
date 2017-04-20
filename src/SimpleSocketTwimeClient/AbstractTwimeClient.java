@@ -161,9 +161,8 @@ public class AbstractTwimeClient implements Runnable{
         if (retransmissionCount > 0) {
             System.out.println(" ----- message from retransmission, retransmissionCount: " + retransmissionCount);
             retransmissionCount --;
-        } else {
-            receivedSequenceNum ++;
         }
+        receivedSequenceNum ++;
     }
 
     public synchronized int decodeMessage(UnsafeBuffer unsafeBuffer, int startOffset){
