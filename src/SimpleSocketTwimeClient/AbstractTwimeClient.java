@@ -256,7 +256,6 @@ public class AbstractTwimeClient implements Runnable{
     }
 
     protected void onEstablishmentAck(EstablishmentAckDecoder decoder){
-        receivedSequenceNum = decoder.nextSeqNo();
         if (heartBeatProcess == null) {
             heartBeatProcess = new TwimeHeartBeatProcess(outputChannel, intervalMsec);
         }
