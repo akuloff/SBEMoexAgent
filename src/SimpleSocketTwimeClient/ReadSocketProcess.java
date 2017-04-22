@@ -11,14 +11,12 @@ import java.net.SocketTimeoutException;
  * Created by mpoke_000 on 07.03.2017.
  */
 public class ReadSocketProcess implements Runnable {
-    private Socket socket = null;
     private InputStream inputStream = null;
     private boolean isStopped = false;
     protected final byte[] dataBuffer = new byte[4096];
     protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(dataBuffer);
 
     public ReadSocketProcess(Socket socket, int readTimeoutMsec) {
-        this.socket = socket;
         try {
             socket.setSoTimeout(readTimeoutMsec);
             inputStream = socket.getInputStream();
