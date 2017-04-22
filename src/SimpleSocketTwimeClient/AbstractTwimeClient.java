@@ -24,6 +24,8 @@ public class AbstractTwimeClient implements Runnable{
     private String clientId = null;
     private long lastSendTime = 0;//время последней отправки сообщения (любого) - в т.ч. для определени янеобходимости отправки heartbeat
 
+    private int socketReadTimeoutMsec = 10000;
+
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
     private UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
     private int bufferOffset = 0;
@@ -65,7 +67,7 @@ public class AbstractTwimeClient implements Runnable{
         if (simpleSocketClient.isConnected()){
             try {
                 outputChannel = Channels.newChannel(simpleSocketClient.getSocket().getOutputStream());
-                 readSocketProcess = new ReadSocketProcess(simpleSocketClient.getSocket()){
+                 readSocketProcess = new ReadSocketProcess(simpleSocketClient.getSocket(), socketReadTimeoutMsec){
                     @Override
                     protected void processMessage(int actualReaded) {
                         super.processMessage(actualReaded);
@@ -353,6 +355,15 @@ public class AbstractTwimeClient implements Runnable{
 
     public long getRetransmissionCount() {
         return retransmissionCount;
+    }
+
+    public int getSocketReadTimeoutMsec() {
+        return socketReadTimeoutMsec;
+    }
+
+    public AbstractTwimeClient setSocketReadTimeoutMsec(int socketReadTimeoutMsec) {
+        this.socketReadTimeoutMsec = socketReadTimeoutMsec;
+        return this;
     }
 }
 

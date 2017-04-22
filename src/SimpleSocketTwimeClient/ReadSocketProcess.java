@@ -5,6 +5,7 @@ import org.agrona.concurrent.UnsafeBuffer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 
 /**
  * Created by mpoke_000 on 07.03.2017.
@@ -12,13 +13,14 @@ import java.net.Socket;
 public class ReadSocketProcess implements Runnable {
     private Socket socket = null;
     private InputStream inputStream = null;
-    protected final byte[] dataBuffer = new byte[4096];
     private boolean isStopped = false;
+    protected final byte[] dataBuffer = new byte[4096];
     protected final UnsafeBuffer unsafeBuffer = new UnsafeBuffer(dataBuffer);
 
-    public ReadSocketProcess(Socket socket) {
+    public ReadSocketProcess(Socket socket, int readTimeoutMsec) {
         this.socket = socket;
         try {
+            socket.setSoTimeout(readTimeoutMsec);
             inputStream = socket.getInputStream();
             System.out.println("input stream initialized ...");
         } catch (IOException e) {
@@ -30,16 +32,20 @@ public class ReadSocketProcess implements Runnable {
     public void run() {
         int actualReaded;
         if(inputStream != null){
-            while (!isStopped){
+            while (!isStopped) {
                 try {
-                    actualReaded = inputStream.read(dataBuffer);
-                    if (actualReaded >= 0) {
-                        System.out.println("..... ReadSocketProcess, actualReaded = " + actualReaded);
-                        processMessage(actualReaded);
-                    } else {
-                        System.out.println("..... ReadSocketProcess, actualReaded below zero: " + actualReaded + " do stop, time: " + new java.util.Date(System.currentTimeMillis()));
-                        isStopped = true;
-                        onStop();
+                    try {
+                        actualReaded = inputStream.read(dataBuffer);
+                        if (actualReaded >= 0) {
+                            System.out.println("..... ReadSocketProcess, actualReaded = " + actualReaded);
+                            processMessage(actualReaded);
+                        } else {
+                            System.out.println("..... ReadSocketProcess, actualReaded below zero: " + actualReaded + " do stop, time: " + new java.util.Date(System.currentTimeMillis()));
+                            isStopped = true;
+                            onStop();
+                        }
+                    } catch (SocketTimeoutException e) {
+                        e.printStackTrace();
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
