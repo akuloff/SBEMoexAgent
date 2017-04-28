@@ -260,7 +260,7 @@ public class AbstractTwimeClient implements Runnable{
                     onExecutionSingleReport(executionSingleReportDecoder);
                     increaseSequence();
                     break;
-                case OrderReplaceRequestDecoder.TEMPLATE_ID:
+                case OrderReplaceResponseDecoder.TEMPLATE_ID:
                     orderReplaceResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onOrderReplaceResponse(orderReplaceResponseDecoder);
                     increaseSequence();
