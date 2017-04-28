@@ -48,6 +48,7 @@ public class AbstractTwimeClient implements Runnable{
     private ExecutionSingleReportDecoder executionSingleReportDecoder = new ExecutionSingleReportDecoder();
     private SystemEventDecoder systemEventDecoder = new SystemEventDecoder();
     private EmptyBookDecoder emptyBookDecoder = new EmptyBookDecoder();
+    private OrderReplaceResponseDecoder orderReplaceResponseDecoder = new OrderReplaceResponseDecoder();
 
     //encoders
     private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
@@ -55,6 +56,8 @@ public class AbstractTwimeClient implements Runnable{
     private RetransmitRequestEncoder retransmitRequestEncoder = new RetransmitRequestEncoder();
     private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
     private NewOrderSingleEncoder newOrderSingleEncoder = new NewOrderSingleEncoder();
+    private OrderCancelRequestEncoder orderCancelRequestEncoder = new OrderCancelRequestEncoder();
+    private OrderReplaceRequestEncoder orderReplaceRequestEncoder = new OrderReplaceRequestEncoder();
 
     protected BigDecimal priceMultiplier = new BigDecimal(100000);
 
@@ -134,6 +137,24 @@ public class AbstractTwimeClient implements Runnable{
         initSender(orderMassCancelRequestEncoder.sbeTemplateId(), orderMassCancelRequestEncoder.sbeBlockLength());
         orderMassCancelRequestEncoder.wrap(directBuffer, bufferOffset).account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkID).securityID(securityId).securityType(securityTypeEnum).side(sideEnum).securityGroup(securityGroup);
         encodingLength += orderMassCancelRequestEncoder.encodedLength();
+        sendBuffer(encodingLength);
+    }
+
+    public void sendOrderCancelRequest(long clOrdId, long orderId) throws IOException {
+        initSender(orderCancelRequestEncoder.sbeTemplateId(), orderCancelRequestEncoder.sbeBlockLength());
+        orderCancelRequestEncoder.wrap(directBuffer, bufferOffset);
+        orderCancelRequestEncoder.account(userAccount).clOrdID(clOrdId).orderID(orderId);
+        encodingLength += orderCancelRequestEncoder.encodedLength();
+        sendBuffer(encodingLength);
+    }
+
+    public void sendOrderReplaceRequest(long clOrdId, long orderId, double newPrice, long newAmount, int clOrdLinkId, ModeEnum mode) throws IOException {
+        initSender(orderReplaceRequestEncoder.sbeTemplateId(), orderReplaceRequestEncoder.sbeBlockLength());
+        orderReplaceRequestEncoder.wrap(directBuffer, bufferOffset);
+        long longPrice = new BigDecimal(newPrice).multiply(priceMultiplier).longValue();
+        orderReplaceRequestEncoder.price().mantissa(longPrice);
+        orderReplaceRequestEncoder.account(userAccount).clOrdID(clOrdId).orderID(orderId).orderQty(newAmount).clOrdLinkID(clOrdLinkId).mode(mode);
+        encodingLength += orderReplaceRequestEncoder.encodedLength();
         sendBuffer(encodingLength);
     }
 
@@ -239,6 +260,11 @@ public class AbstractTwimeClient implements Runnable{
                     onExecutionSingleReport(executionSingleReportDecoder);
                     increaseSequence();
                     break;
+                case OrderReplaceRequestDecoder.TEMPLATE_ID:
+                    orderReplaceResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onOrderReplaceResponse(orderReplaceResponseDecoder);
+                    increaseSequence();
+                    break;
                 case SystemEventDecoder.TEMPLATE_ID:
                     systemEventDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onSystemEvent(systemEventDecoder);
@@ -276,6 +302,7 @@ public class AbstractTwimeClient implements Runnable{
     protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
     protected void onNewOrderSingleResponse(NewOrderSingleResponseDecoder decoder){}
     protected void onOrderCancelResponse(OrderCancelResponseDecoder decoder){}
+    protected void onOrderReplaceResponse(OrderReplaceResponseDecoder decoder){}
     protected void onExecutionSingleReport(ExecutionSingleReportDecoder decoder){}
     protected void onSystemEvent(SystemEventDecoder decoder){}
     protected void onEmptyBook(EmptyBookDecoder decoder){}
