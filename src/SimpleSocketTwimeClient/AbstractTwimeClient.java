@@ -44,6 +44,7 @@ public class AbstractTwimeClient implements Runnable{
     private RetransmissionDecoder retransmissionDecoder = new RetransmissionDecoder();
     private NewOrderRejectDecoder newOrderRejectDecoder = new NewOrderRejectDecoder();
     private NewOrderSingleResponseDecoder newOrderSingleResponseDecoder = new NewOrderSingleResponseDecoder();
+    private NewOrderMultilegResponseDecoder newOrderMultilegResponseDecoder = new NewOrderMultilegResponseDecoder();
     private OrderCancelResponseDecoder orderCancelResponseDecoder = new OrderCancelResponseDecoder();
     private ExecutionSingleReportDecoder executionSingleReportDecoder = new ExecutionSingleReportDecoder();
     private SystemEventDecoder systemEventDecoder = new SystemEventDecoder();
@@ -56,10 +57,12 @@ public class AbstractTwimeClient implements Runnable{
     private RetransmitRequestEncoder retransmitRequestEncoder = new RetransmitRequestEncoder();
     private OrderMassCancelRequestEncoder orderMassCancelRequestEncoder = new OrderMassCancelRequestEncoder();
     private NewOrderSingleEncoder newOrderSingleEncoder = new NewOrderSingleEncoder();
+    private NewOrderMultilegEncoder newOrderMultilegEncoder = new NewOrderMultilegEncoder();
     private OrderCancelRequestEncoder orderCancelRequestEncoder = new OrderCancelRequestEncoder();
     private OrderReplaceRequestEncoder orderReplaceRequestEncoder = new OrderReplaceRequestEncoder();
 
-    protected BigDecimal priceMultiplier = new BigDecimal(100000);
+    //protected BigDecimal priceMultiplier = new BigDecimal(100000);
+    protected long priceMultiplier = 100000L;
 
     private ReadSocketProcess readSocketProcess = null;
 
@@ -126,10 +129,20 @@ public class AbstractTwimeClient implements Runnable{
     public void sendNewOrderSingle(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
         initSender(newOrderSingleEncoder.sbeTemplateId(), newOrderSingleEncoder.sbeBlockLength());
         newOrderSingleEncoder.wrap(directBuffer, bufferOffset);
-        long longPrice = new BigDecimal(price).multiply(priceMultiplier).longValue();
+        long longPrice = (long) price * priceMultiplier;
         newOrderSingleEncoder.price().mantissa(longPrice);
         newOrderSingleEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).checkLimit(CheckLimitEnum.Check).expireDate(NewOrderSingleEncoder.expireDateNullValue());
         encodingLength += newOrderSingleEncoder.encodedLength();
+        sendBuffer(encodingLength);
+    }
+
+    public void sendNewOrderMultileg(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
+        initSender(newOrderMultilegEncoder.sbeTemplateId(), newOrderMultilegEncoder.sbeBlockLength());
+        newOrderMultilegEncoder.wrap(directBuffer, bufferOffset);
+        long longPrice = (long) price * priceMultiplier;
+        newOrderMultilegEncoder.price().mantissa(longPrice);
+        newOrderMultilegEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).expireDate(NewOrderMultilegEncoder.expireDateNullValue());
+        encodingLength += newOrderMultilegEncoder.encodedLength();
         sendBuffer(encodingLength);
     }
 
@@ -151,7 +164,7 @@ public class AbstractTwimeClient implements Runnable{
     public void sendOrderReplaceRequest(long clOrdId, long orderId, double newPrice, long newAmount, int clOrdLinkId, ModeEnum mode) throws IOException {
         initSender(orderReplaceRequestEncoder.sbeTemplateId(), orderReplaceRequestEncoder.sbeBlockLength());
         orderReplaceRequestEncoder.wrap(directBuffer, bufferOffset);
-        long longPrice = new BigDecimal(newPrice).multiply(priceMultiplier).longValue();
+        long longPrice = (long) newPrice * priceMultiplier;
         orderReplaceRequestEncoder.price().mantissa(longPrice);
         orderReplaceRequestEncoder.account(userAccount).clOrdID(clOrdId).orderID(orderId).orderQty(newAmount).clOrdLinkID(clOrdLinkId).mode(mode);
         encodingLength += orderReplaceRequestEncoder.encodedLength();
@@ -250,6 +263,11 @@ public class AbstractTwimeClient implements Runnable{
                     onNewOrderSingleResponse(newOrderSingleResponseDecoder);
                     increaseSequence();
                     break;
+                case NewOrderMultilegResponseDecoder.TEMPLATE_ID:
+                    newOrderMultilegResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onNewOrderMultilegResponse(newOrderMultilegResponseDecoder);
+                    increaseSequence();
+                    break;
                 case OrderCancelResponseDecoder.TEMPLATE_ID:
                     orderCancelResponseDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onOrderCancelResponse(orderCancelResponseDecoder);
@@ -301,6 +319,7 @@ public class AbstractTwimeClient implements Runnable{
     //прикладные обработчики
     protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
     protected void onNewOrderSingleResponse(NewOrderSingleResponseDecoder decoder){}
+    protected void onNewOrderMultilegResponse(NewOrderMultilegResponseDecoder decoder){}
     protected void onOrderCancelResponse(OrderCancelResponseDecoder decoder){}
     protected void onOrderReplaceResponse(OrderReplaceResponseDecoder decoder){}
     protected void onExecutionSingleReport(ExecutionSingleReportDecoder decoder){}
