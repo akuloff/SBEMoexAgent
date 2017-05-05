@@ -47,9 +47,11 @@ public class AbstractTwimeClient implements Runnable{
     private NewOrderMultilegResponseDecoder newOrderMultilegResponseDecoder = new NewOrderMultilegResponseDecoder();
     private OrderCancelResponseDecoder orderCancelResponseDecoder = new OrderCancelResponseDecoder();
     private ExecutionSingleReportDecoder executionSingleReportDecoder = new ExecutionSingleReportDecoder();
+    private ExecutionMultilegReportDecoder executionMultilegReportDecoder = new ExecutionMultilegReportDecoder();
     private SystemEventDecoder systemEventDecoder = new SystemEventDecoder();
     private EmptyBookDecoder emptyBookDecoder = new EmptyBookDecoder();
     private OrderReplaceResponseDecoder orderReplaceResponseDecoder = new OrderReplaceResponseDecoder();
+    private FloodRejectDecoder floodRejectDecoder = new FloodRejectDecoder();
 
     //encoders
     private MessageHeaderEncoder headerEncoder = new MessageHeaderEncoder();
@@ -245,6 +247,10 @@ public class AbstractTwimeClient implements Runnable{
                     retransmissionCount = retransmissionDecoder.count();
                     onRetransmission(retransmissionDecoder);
                     break;
+                case FloodRejectDecoder.TEMPLATE_ID:
+                    floodRejectDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onFloodReject(floodRejectDecoder);
+                    break;
 
                 // Прикладной уровень (торговля) - увеличивает sequenceNum
 
@@ -276,6 +282,11 @@ public class AbstractTwimeClient implements Runnable{
                 case ExecutionSingleReportDecoder.TEMPLATE_ID:
                     executionSingleReportDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
                     onExecutionSingleReport(executionSingleReportDecoder);
+                    increaseSequence();
+                    break;
+                case ExecutionMultilegReportDecoder.TEMPLATE_ID:
+                    executionMultilegReportDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
+                    onExecutionMultilegReport(executionMultilegReportDecoder);
                     increaseSequence();
                     break;
                 case OrderReplaceResponseDecoder.TEMPLATE_ID:
@@ -315,6 +326,7 @@ public class AbstractTwimeClient implements Runnable{
     protected void onEstablishmentReject(EstablishmentRejectDecoder decoder){}
     protected void onSequence(SequenceDecoder decoder){}
     protected void onRetransmission(RetransmissionDecoder decoder){}
+    protected void onFloodReject(FloodRejectDecoder decoder){};
 
     //прикладные обработчики
     protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
@@ -323,6 +335,7 @@ public class AbstractTwimeClient implements Runnable{
     protected void onOrderCancelResponse(OrderCancelResponseDecoder decoder){}
     protected void onOrderReplaceResponse(OrderReplaceResponseDecoder decoder){}
     protected void onExecutionSingleReport(ExecutionSingleReportDecoder decoder){}
+    protected void onExecutionMultilegReport(ExecutionMultilegReportDecoder decoder){}
     protected void onSystemEvent(SystemEventDecoder decoder){}
     protected void onEmptyBook(EmptyBookDecoder decoder){}
 
