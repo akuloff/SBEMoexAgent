@@ -8,11 +8,15 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Created by mpoke_000 on 08.03.2017.
  */
 public class AbstractTwimeClient implements Runnable{
+    private static Logger logger = Logger.getLogger(AbstractTwimeClient.class.getName());
+
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     protected long receivedSequenceNum = 0; //счетчик сообщений прикладного уровня
     protected long retransmissionCount = 0;
@@ -63,7 +67,6 @@ public class AbstractTwimeClient implements Runnable{
     private OrderCancelRequestEncoder orderCancelRequestEncoder = new OrderCancelRequestEncoder();
     private OrderReplaceRequestEncoder orderReplaceRequestEncoder = new OrderReplaceRequestEncoder();
 
-    //protected BigDecimal priceMultiplier = new BigDecimal(100000);
     protected long priceMultiplier = 100000L;
 
     private ReadSocketProcess readSocketProcess = null;
@@ -99,13 +102,13 @@ public class AbstractTwimeClient implements Runnable{
                 try {
                     connectionThread.join();
                 } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "InterruptedException: ", e);
                 }
 
                 AbstractTwimeClient.this.stopHeartBeatProcess();
                 simpleSocketClient.doDisconnect();
             } catch (IOException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "IOException: ", e);
             }
         }
     }
@@ -197,7 +200,7 @@ public class AbstractTwimeClient implements Runnable{
 
     private void increaseSequence(){
         if (retransmissionCount > 0) {
-            System.out.println(" ----- message from retransmission, retransmissionCount: " + retransmissionCount);
+            logger.fine(String.format(" ----- message from retransmission, retransmissionCount: %1$d", retransmissionCount));
             retransmissionCount --;
         }
         receivedSequenceNum ++;
@@ -215,7 +218,7 @@ public class AbstractTwimeClient implements Runnable{
         bytesOffset += messageHeaderDecoder.encodedLength();
         if (templateId > 0 && version > 0) {
             if (SequenceDecoder.TEMPLATE_ID != templateId) {
-                System.out.println("  <<<< AbstractTwimeClient decodeMessage, schemaId: " + schemaId + " |version: " + version + " |templateId: " + templateId + " |blockLength: " + blockLength + " |bytesOffset: " + bytesOffset);
+                logger.fine(String.format("  <<<< decodeMessage, schemaId: %1$d |version: %2$d |templateId: %3$d |blockLength: %4$d |bytesOffset: %5$d", schemaId, version, templateId, blockLength, bytesOffset));
             }
 
             switch (templateId) {

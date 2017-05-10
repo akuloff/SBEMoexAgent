@@ -2,11 +2,16 @@ package SimpleSocketTwimeClient;
 
 import java.io.IOException;
 import java.net.Socket;
+import java.time.Instant;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Created by mpoke_000 on 07.03.2017.
  */
 public class SimpleSocketClient {
+    private static Logger logger = Logger.getLogger(SimpleSocketClient.class.getName());
+
     private String hostAddress = null;
     private int port = 0;
     private Socket socket;
@@ -23,21 +28,21 @@ public class SimpleSocketClient {
     public void doConnect(){
         try {
             socket = new Socket(hostAddress, port);
-            System.out.println("is connected: " + socket.isConnected() + " |time: " + new java.util.Date(System.currentTimeMillis()));
+            logger.info(String.format("is connected: %1$s |time: %2$s", socket.isConnected(), java.sql.Timestamp.from(Instant.now())));
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "InterruptedException: ", e);
         }
     }
 
     public void doDisconnect(){
         if(socket != null){
-            System.out.println("doDisconnect, is connected: " + socket.isConnected());
+            logger.info(String.format("doDisconnect, is connected: %1$s", socket.isConnected()));
             if (socket.isConnected()) {
                 try {
-                    System.out.println("do close socket ...");
+                    logger.info("do close socket ...");
                     socket.close();
                 } catch (IOException e) {
-                    e.printStackTrace();
+                    logger.log(Level.SEVERE, "IOException: ", e);
                 }
             }
         }

@@ -6,11 +6,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.Socket;
 import java.net.SocketTimeoutException;
+import java.security.Timestamp;
+import java.time.Instant;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Created by mpoke_000 on 07.03.2017.
  */
 public class ReadSocketProcess implements Runnable {
+    private static Logger logger = Logger.getLogger(ReadSocketProcess.class.getName());
+
     private InputStream inputStream = null;
     private boolean isStopped = false;
     protected final byte[] dataBuffer = new byte[4096];
@@ -20,9 +26,9 @@ public class ReadSocketProcess implements Runnable {
         try {
             socket.setSoTimeout(readTimeoutMsec);
             inputStream = socket.getInputStream();
-            System.out.println("input stream initialized ...");
+            logger.info("input stream initialized ...");
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "IOException: ", e);
         }
     }
 
@@ -35,21 +41,21 @@ public class ReadSocketProcess implements Runnable {
                     try {
                         actualReaded = inputStream.read(dataBuffer);
                         if (actualReaded >= 0) {
-                            System.out.println("..... ReadSocketProcess, actualReaded = " + actualReaded);
+                            logger.fine(String.format("..... ReadSocketProcess, actualReaded = %1$s", actualReaded));
                             processMessage(actualReaded);
                         } else {
-                            System.out.println("..... ReadSocketProcess, actualReaded below zero: " + actualReaded + " do stop, time: " + new java.util.Date(System.currentTimeMillis()));
+                            logger.fine(String.format("..... ReadSocketProcess, actualReaded below zero: %1$s do stop, time: %2$s", actualReaded, java.sql.Timestamp.from(Instant.now())));
                             isStopped = true;
                             onStop();
                         }
                     } catch (SocketTimeoutException e) {
-                        e.printStackTrace();
+                        logger.log(Level.WARNING, "SocketTimeoutException: ", e);
                     }
                 } catch (IOException e) {
                     e.printStackTrace();
                     isStopped = true;
                     onStop();
-                    System.out.println("error read stream, do stop, time: " + new java.util.Date(System.currentTimeMillis()));
+                    logger.info(String.format("error read stream, do stop, time: %1$s", java.sql.Timestamp.from(Instant.now())));
                 }
             }
         }

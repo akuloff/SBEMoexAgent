@@ -7,11 +7,16 @@ import sbe.SequenceEncoder;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.time.Instant;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * процесс отправки heartbeat через TWIME
  */
 public class TwimeHeartBeatProcess implements Runnable{
+    private static Logger logger = Logger.getLogger(TwimeHeartBeatProcess.class.getName());
+
     private boolean isStopped = false;
     private WritableByteChannel channel = null;
     private long intervalMsec = 0;
@@ -62,10 +67,10 @@ public class TwimeHeartBeatProcess implements Runnable{
 
         byteBuffer.limit(encodingLength);
         try {
-            System.out.println(" >> TwimeHeartBeatProcess send sequence ...");
+            logger.fine(" >> send sequence ...");
             channel.write(byteBuffer);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.log(Level.SEVERE, "IOException: ", e);
             this.setStopped(true);
         }
     }
@@ -79,7 +84,7 @@ public class TwimeHeartBeatProcess implements Runnable{
                     sendSequence(1);
                 }
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                logger.log(Level.SEVERE, "InterruptedException: ", e);
                 isStopped = true;
             }
         }
@@ -97,7 +102,7 @@ public class TwimeHeartBeatProcess implements Runnable{
     private boolean needSendHeartbeat(){
         boolean result = true;
         if (abstractTwimeClient != null){
-            if (System.currentTimeMillis() - abstractTwimeClient.getLastSendTime() < intervalMsec) {
+            if (java.sql.Timestamp.from(Instant.now()).getTime() - abstractTwimeClient.getLastSendTime() < intervalMsec) {
                 result = false;
             }
         }
