@@ -3,6 +3,9 @@
 *.war
 *.ear
 
+# java classes
+*.class
+
 # target
 target/
 .idea
