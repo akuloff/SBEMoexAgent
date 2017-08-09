@@ -10,7 +10,7 @@ import java.util.logging.Logger;
  * Created by mpoke_000 on 07.03.2017.
  */
 public class SimpleSocketClient {
-    private static Logger logger = Logger.getLogger(SimpleSocketClient.class.getName());
+    private static final Logger logger = Logger.getLogger(SimpleSocketClient.class.getName());
 
     private String hostAddress = null;
     private int port = 0;

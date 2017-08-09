@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  * Created by mpoke_000 on 08.03.2017.
  */
 public class AbstractTwimeClient implements Runnable{
-    private static Logger logger = Logger.getLogger(AbstractTwimeClient.class.getName());
+    private static final Logger logger = Logger.getLogger(AbstractTwimeClient.class.getName());
 
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     protected long receivedSequenceNum = 0; //счетчик сообщений прикладного уровня

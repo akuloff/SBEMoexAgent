@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  * Created by mpoke_000 on 07.03.2017.
  */
 public class ReadSocketProcess implements Runnable {
-    private static Logger logger = Logger.getLogger(ReadSocketProcess.class.getName());
+    private static final Logger logger = Logger.getLogger(ReadSocketProcess.class.getName());
 
     private InputStream inputStream = null;
     private boolean isStopped = false;

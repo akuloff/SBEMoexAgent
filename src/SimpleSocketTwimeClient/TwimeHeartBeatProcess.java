@@ -15,7 +15,7 @@ import java.util.logging.Logger;
  * процесс отправки heartbeat через TWIME
  */
 public class TwimeHeartBeatProcess implements Runnable{
-    private static Logger logger = Logger.getLogger(TwimeHeartBeatProcess.class.getName());
+    private static final Logger logger = Logger.getLogger(TwimeHeartBeatProcess.class.getName());
 
     private boolean isStopped = false;
     private WritableByteChannel channel = null;
