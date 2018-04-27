@@ -1,5 +1,5 @@
-group 'alfajavatrading'
-version '1.0.0-snapshot'
+group 'monkeyquant'
+version '1.0.1-snapshot'
 
 apply plugin: 'java'
 apply plugin: 'idea'
