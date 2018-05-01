@@ -5,37 +5,30 @@ import org.agrona.concurrent.UnsafeBuffer;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.Channels;
-import java.nio.channels.WritableByteChannel;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Created by mpoke_000 on 08.03.2017.
- */
-public class AbstractTwimeClient implements Runnable{
+public abstract class AbstractTwimeClient {
     private static final Logger logger = Logger.getLogger(AbstractTwimeClient.class.getName());
 
     private MessageHeaderDecoder messageHeaderDecoder = new MessageHeaderDecoder();
     protected long receivedSequenceNum = 0; //счетчик сообщений прикладного уровня
     protected long retransmissionCount = 0;
+    protected long keepAliveInterval = 5000;
 
-    private TwimeHeartBeatProcess heartBeatProcess = null;
-    private long intervalMsec = 0;
-    private WritableByteChannel outputChannel = null;
     private String userAccount = null;
     private String clientId = null;
-    private long lastSendTime = 0;//время последней отправки сообщения (любого) - в т.ч. для определени янеобходимости отправки heartbeat
-
-    private int socketReadTimeoutMsec = 10000;
 
     private ByteBuffer byteBuffer = ByteBuffer.allocateDirect(4096);
     private UnsafeBuffer directBuffer = new UnsafeBuffer(byteBuffer);
+
+    private ByteBuffer heartBeatBuffer = ByteBuffer.allocateDirect(4096);
+    private UnsafeBuffer directHearBeatBuffer = new UnsafeBuffer(heartBeatBuffer);
+    private boolean isHeartBeatCreated = false;
+
     private int bufferOffset = 0;
     private int encodingLength = 0;
+    private int heartBeatLength = 0;
 
-    private String hostAddress = null;
-    private int connectionPort;
 
     //decoders
     private EstablishmentAckDecoder establishmentAckDecoder = new EstablishmentAckDecoder();
@@ -68,57 +61,17 @@ public class AbstractTwimeClient implements Runnable{
 
     protected long priceMultiplier = 100000L;
 
-    private ReadSocketProcess readSocketProcess = null;
-
-    @Override
-    public void run() {
-        SimpleSocketConnector simpleSocketClient = new SimpleSocketConnector(this.hostAddress, this.connectionPort);
-        simpleSocketClient.doConnect();
-        if (simpleSocketClient.isConnected()){
-            try {
-                outputChannel = Channels.newChannel(simpleSocketClient.getSocket().getOutputStream());
-                 readSocketProcess = new ReadSocketProcess(simpleSocketClient.getSocket(), socketReadTimeoutMsec){
-                    @Override
-                    protected void processMessage(int actualReaded) {
-                        super.processMessage(actualReaded);
-                        int currentOffset = 0;
-                        while(currentOffset < actualReaded) {
-                            currentOffset = AbstractTwimeClient.this.decodeMessage(unsafeBuffer, currentOffset);
-                        }
-                    }
-
-                    @Override
-                    protected void onStop() {
-                        super.onStop();
-                        AbstractTwimeClient.this.stopHeartBeatProcess();
-                    }
-                };
-
-                Thread connectionThread = new Thread(readSocketProcess);
-                connectionThread.start();
-
-                this.sendEstablish();
-                try {
-                    connectionThread.join();
-                } catch (InterruptedException e) {
-                    logger.log(Level.SEVERE, "InterruptedException: ", e);
-                }
-
-                AbstractTwimeClient.this.stopHeartBeatProcess();
-                simpleSocketClient.doDisconnect();
-            } catch (IOException e) {
-                logger.log(Level.SEVERE, "IOException: ", e);
-            }
-        }
+    public long getKeepAliveInterval() {
+        return keepAliveInterval;
     }
 
-    public void stopConnectionProcess(){
-        if (readSocketProcess != null && !readSocketProcess.isStopped()){
-            readSocketProcess.setStopped(true);
-        }
+    public AbstractTwimeClient setKeepAliveInterval(long keepAliveInterval) {
+        this.keepAliveInterval = keepAliveInterval;
+        return this;
     }
 
-    private void initSender(int templateId, int blockLength){
+
+    private void initHeaderForSend(int templateId, int blockLength){
         bufferOffset = encodingLength = 0;
         byteBuffer.clear();
         headerEncoder.wrap(directBuffer, bufferOffset)
@@ -130,72 +83,85 @@ public class AbstractTwimeClient implements Runnable{
         encodingLength += headerEncoder.encodedLength();
     }
 
-    public void sendNewOrderSingle(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
-        initSender(newOrderSingleEncoder.sbeTemplateId(), newOrderSingleEncoder.sbeBlockLength());
+
+    protected void sendHeartBeat() throws IOException {
+        if (!isHeartBeatCreated) {
+            MessageHeaderEncoder messageHeaderEncoder = new MessageHeaderEncoder();
+            SequenceEncoder sequenceEncoder = new SequenceEncoder();
+            messageHeaderEncoder.wrap(directHearBeatBuffer, 0)
+                    .blockLength(sequenceEncoder.sbeBlockLength())
+                    .templateId(sequenceEncoder.sbeTemplateId())
+                    .schemaId(sequenceEncoder.sbeSchemaId())
+                    .version(sequenceEncoder.sbeSchemaVersion());
+            heartBeatLength += messageHeaderEncoder.encodedLength();
+            sequenceEncoder.wrap(directBuffer, heartBeatLength).nextSeqNo(SequenceEncoder.nextSeqNoNullValue());
+            heartBeatLength += sequenceEncoder.encodedLength();
+            isHeartBeatCreated = true;
+            heartBeatBuffer.limit(encodingLength);
+        }
+        sendBuffer(heartBeatBuffer, heartBeatLength);
+    }
+
+    protected void sendNewOrderSingle(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
+        initHeaderForSend(newOrderSingleEncoder.sbeTemplateId(), newOrderSingleEncoder.sbeBlockLength());
         newOrderSingleEncoder.wrap(directBuffer, bufferOffset);
         long longPrice = (long) price * priceMultiplier;
         newOrderSingleEncoder.price().mantissa(longPrice);
         newOrderSingleEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).checkLimit(CheckLimitEnum.Check).expireDate(NewOrderSingleEncoder.expireDateNullValue());
         encodingLength += newOrderSingleEncoder.encodedLength();
-        sendBuffer(encodingLength);
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    public void sendNewOrderMultileg(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
-        initSender(newOrderMultilegEncoder.sbeTemplateId(), newOrderMultilegEncoder.sbeBlockLength());
+    protected void sendNewOrderMultileg(long clOrdId, int securityId, double price, long amount, int clOrdLinkId, TimeInForceEnum timeInForce, SideEnum side) throws IOException {
+        initHeaderForSend(newOrderMultilegEncoder.sbeTemplateId(), newOrderMultilegEncoder.sbeBlockLength());
         newOrderMultilegEncoder.wrap(directBuffer, bufferOffset);
         long longPrice = (long) price * priceMultiplier;
         newOrderMultilegEncoder.price().mantissa(longPrice);
         newOrderMultilegEncoder.account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkId).orderQty(amount).securityID(securityId).timeInForce(timeInForce).side(side).expireDate(NewOrderMultilegEncoder.expireDateNullValue());
         encodingLength += newOrderMultilegEncoder.encodedLength();
-        sendBuffer(encodingLength);
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    public void sendOrderMassCancelRequest(long clOrdId, int clOrdLinkID, int securityId, SecurityTypeEnum securityTypeEnum, SideEnum sideEnum, String securityGroup) throws IOException {
-        initSender(orderMassCancelRequestEncoder.sbeTemplateId(), orderMassCancelRequestEncoder.sbeBlockLength());
+    protected void sendOrderMassCancelRequest(long clOrdId, int clOrdLinkID, int securityId, SecurityTypeEnum securityTypeEnum, SideEnum sideEnum, String securityGroup) throws IOException {
+        initHeaderForSend(orderMassCancelRequestEncoder.sbeTemplateId(), orderMassCancelRequestEncoder.sbeBlockLength());
         orderMassCancelRequestEncoder.wrap(directBuffer, bufferOffset).account(userAccount).clOrdID(clOrdId).clOrdLinkID(clOrdLinkID).securityID(securityId).securityType(securityTypeEnum).side(sideEnum).securityGroup(securityGroup);
         encodingLength += orderMassCancelRequestEncoder.encodedLength();
-        sendBuffer(encodingLength);
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    public void sendOrderCancelRequest(long clOrdId, long orderId) throws IOException {
-        initSender(orderCancelRequestEncoder.sbeTemplateId(), orderCancelRequestEncoder.sbeBlockLength());
+    protected void sendOrderCancelRequest(long clOrdId, long orderId) throws IOException {
+        initHeaderForSend(orderCancelRequestEncoder.sbeTemplateId(), orderCancelRequestEncoder.sbeBlockLength());
         orderCancelRequestEncoder.wrap(directBuffer, bufferOffset);
         orderCancelRequestEncoder.account(userAccount).clOrdID(clOrdId).orderID(orderId);
         encodingLength += orderCancelRequestEncoder.encodedLength();
-        sendBuffer(encodingLength);
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    public void sendOrderReplaceRequest(long clOrdId, long orderId, double newPrice, long newAmount, int clOrdLinkId, ModeEnum mode) throws IOException {
-        initSender(orderReplaceRequestEncoder.sbeTemplateId(), orderReplaceRequestEncoder.sbeBlockLength());
+    protected void sendOrderReplaceRequest(long clOrdId, long orderId, double newPrice, long newAmount, int clOrdLinkId, ModeEnum mode) throws IOException {
+        initHeaderForSend(orderReplaceRequestEncoder.sbeTemplateId(), orderReplaceRequestEncoder.sbeBlockLength());
         orderReplaceRequestEncoder.wrap(directBuffer, bufferOffset);
         long longPrice = (long) newPrice * priceMultiplier;
         orderReplaceRequestEncoder.price().mantissa(longPrice);
         orderReplaceRequestEncoder.account(userAccount).clOrdID(clOrdId).orderID(orderId).orderQty(newAmount).clOrdLinkID(clOrdLinkId).mode(mode);
         encodingLength += orderReplaceRequestEncoder.encodedLength();
-        sendBuffer(encodingLength);
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    public void sendEstablish() throws IOException {
-        if (outputChannel != null) {
-            initSender(establishEncoder.sbeTemplateId(), establishEncoder.sbeBlockLength());
-            establishEncoder.wrap(directBuffer, bufferOffset).credentials(clientId).keepaliveInterval(intervalMsec).timestamp(System.currentTimeMillis());
-            encodingLength += establishEncoder.encodedLength();
-            sendBuffer(encodingLength);
-        }
+    protected void sendEstablish() throws IOException {
+        initHeaderForSend(establishEncoder.sbeTemplateId(), establishEncoder.sbeBlockLength());
+        establishEncoder.wrap(directBuffer, bufferOffset).credentials(clientId).keepaliveInterval(keepAliveInterval).timestamp(System.currentTimeMillis());
+        encodingLength += establishEncoder.encodedLength();
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    public void sendRetransmitRequest(long timestamp, long fromSeqNum, long count) throws IOException{
-        initSender(retransmitRequestEncoder.sbeTemplateId(), retransmitRequestEncoder.sbeBlockLength());
+    protected void sendRetransmitRequest(long timestamp, long fromSeqNum, long count) throws IOException{
+        initHeaderForSend(retransmitRequestEncoder.sbeTemplateId(), retransmitRequestEncoder.sbeBlockLength());
         retransmitRequestEncoder.wrap(directBuffer, bufferOffset).timestamp(timestamp).fromSeqNo(fromSeqNum).count(count);
         encodingLength += retransmitRequestEncoder.encodedLength();
-        sendBuffer(encodingLength);
+        sendBuffer(byteBuffer, encodingLength);
     }
 
-    private void sendBuffer(int length) throws IOException {
-        byteBuffer.limit(length);
-        outputChannel.write(byteBuffer);
-        lastSendTime = System.currentTimeMillis();
-    }
+    abstract protected void sendBuffer(ByteBuffer buffer, int length) throws IOException;
 
     private void increaseSequence(){
         if (retransmissionCount > 0) {
@@ -205,7 +171,7 @@ public class AbstractTwimeClient implements Runnable{
         receivedSequenceNum ++;
     }
 
-    public synchronized int decodeMessage(UnsafeBuffer unsafeBuffer, int startOffset){
+    protected synchronized int decodeMessage(UnsafeBuffer unsafeBuffer, int startOffset){
         int bytesOffset = startOffset;
         messageHeaderDecoder.wrap(unsafeBuffer, bytesOffset);
 
@@ -221,8 +187,7 @@ public class AbstractTwimeClient implements Runnable{
             }
 
             switch (templateId) {
-
-                //Сессионный уровень (соединение)
+                //Сессионный уровень (соединение, heartbeat)
 
                 case EstablishmentAckDecoder.TEMPLATE_ID: //establishmentAsk (начало сессии)
                     establishmentAckDecoder.wrap(unsafeBuffer, bytesOffset, blockLength, version);
@@ -314,21 +279,16 @@ public class AbstractTwimeClient implements Runnable{
         return bytesOffset;
     }
 
-    protected void onEstablishmentAck(EstablishmentAckDecoder decoder){
-        if (heartBeatProcess == null) {
-            heartBeatProcess = new TwimeHeartBeatProcess(outputChannel, intervalMsec);
-        }
-        new Thread(heartBeatProcess).start();
-    }
+    abstract protected void onEstablishmentAck(EstablishmentAckDecoder decoder);
 
     //сессионные обработчики
-    protected void onTerminate(TerminateDecoder decoder){}
-    protected void onOrderMassCancelResponse(OrderMassCancelResponseDecoder decoder){}
-    protected void onSessionReject(SessionRejectDecoder decoder){}
-    protected void onEstablishmentReject(EstablishmentRejectDecoder decoder){}
-    protected void onSequence(SequenceDecoder decoder){}
-    protected void onRetransmission(RetransmissionDecoder decoder){}
-    protected void onFloodReject(FloodRejectDecoder decoder){};
+    abstract protected void onTerminate(TerminateDecoder decoder);
+    abstract protected void onOrderMassCancelResponse(OrderMassCancelResponseDecoder decoder);
+    abstract protected void onSessionReject(SessionRejectDecoder decoder);
+    abstract protected void onEstablishmentReject(EstablishmentRejectDecoder decoder);
+    abstract protected void onSequence(SequenceDecoder decoder);
+    abstract protected void onRetransmission(RetransmissionDecoder decoder);
+    abstract protected void onFloodReject(FloodRejectDecoder decoder);
 
     //прикладные обработчики
     protected void onNewOrderReject(NewOrderRejectDecoder decoder){}
@@ -341,19 +301,6 @@ public class AbstractTwimeClient implements Runnable{
     protected void onSystemEvent(SystemEventDecoder decoder){}
     protected void onEmptyBook(EmptyBookDecoder decoder){}
 
-
-    public TwimeHeartBeatProcess getHeartBeatProcess() {
-        return heartBeatProcess;
-    }
-
-    public long getIntervalMsec() {
-        return intervalMsec;
-    }
-
-    public AbstractTwimeClient setIntervalMsec(long intervalMsec) {
-        this.intervalMsec = intervalMsec;
-        return this;
-    }
 
     public String getUserAccount() {
         return userAccount;
@@ -373,36 +320,8 @@ public class AbstractTwimeClient implements Runnable{
         return this;
     }
 
-    public long getLastSendTime() {
-        return lastSendTime;
-    }
-
-    public void stopHeartBeatProcess(){
-        if (this.getHeartBeatProcess() != null && !this.getHeartBeatProcess().isStopped()) {
-            this.getHeartBeatProcess().setStopped(true);
-        }
-    }
-
     public long generateNewClientOrderId(){
         return System.currentTimeMillis();
-    }
-
-    public String getHostAddress() {
-        return hostAddress;
-    }
-
-    public AbstractTwimeClient setHostAddress(String hostAddress) {
-        this.hostAddress = hostAddress;
-        return this;
-    }
-
-    public int getConnectionPort() {
-        return connectionPort;
-    }
-
-    public AbstractTwimeClient setConnectionPort(int connectionPort) {
-        this.connectionPort = connectionPort;
-        return this;
     }
 
     public long getReceivedSequenceNum() {
@@ -416,15 +335,6 @@ public class AbstractTwimeClient implements Runnable{
 
     public long getRetransmissionCount() {
         return retransmissionCount;
-    }
-
-    public int getSocketReadTimeoutMsec() {
-        return socketReadTimeoutMsec;
-    }
-
-    public AbstractTwimeClient setSocketReadTimeoutMsec(int socketReadTimeoutMsec) {
-        this.socketReadTimeoutMsec = socketReadTimeoutMsec;
-        return this;
     }
 }
 

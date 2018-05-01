@@ -10,10 +10,8 @@ import java.time.Instant;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * Created by mpoke_000 on 07.03.2017.
- */
-public class ReadSocketProcess implements Runnable {
+
+public abstract class ReadSocketProcess implements Runnable {
     private static final Logger logger = Logger.getLogger(ReadSocketProcess.class.getName());
 
     private InputStream inputStream = null;
@@ -60,10 +58,9 @@ public class ReadSocketProcess implements Runnable {
         }
     }
 
+    protected abstract void processMessage(int actualReaded);
 
-    protected void processMessage(int actualReaded){}
-
-    protected void onStop(){}
+    protected abstract void onStop();
 
     public boolean isStopped() {
         return isStopped;
